@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+    import: optional:file:.env[.properties]
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST}/yorizori_DB?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: testAccount
+    password: ${DB_PASSWORD}
+  sql:
+    init:
+      mode: never
+
+food:
+  api:
+    base-url: http://openapi.foodsafetykorea.go.kr
+    api-key: ${FOOD_API_KEY}
+    service-id: COOKRCP01
+    data-type: xml
+    connect-timeout: 5s
+    read-timeout: 30s
