@@ -48,10 +48,10 @@ export default function FloatingTimer() {
             <Text className="text-base font-bold text-text">{formatTime(remainingSec)}</Text>
           </View>
           <Pressable onPress={isRunning ? pause : resume} className="px-3 py-2 rounded-full bg-[#F8F1FF]">
-            <Text className="text-xs font-semibold text-[#7C5DFA]">{isRunning ? '일시정지' : '재개'}</Text>
+            <Text className="text-xs font-semibold text-[#7C5DFA]">{isRunning ? 'Pause' : 'Resume'}</Text>
           </Pressable>
           <Pressable onPress={stop} className="ml-2 px-3 py-2 rounded-full bg-[#FFE9E9]">
-            <Text className="text-xs font-semibold text-warn">닫기</Text>
+            <Text className="text-xs font-semibold text-warn">Stop</Text>
           </Pressable>
         </View>
       </Animated.View>

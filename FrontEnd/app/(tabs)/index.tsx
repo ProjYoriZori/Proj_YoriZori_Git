@@ -9,60 +9,65 @@ import Chip from '@/src/components/common/Chip';
 import SoftButton from '@/src/components/common/SoftButton';
 import RecipeCard from '@/src/components/recipe/RecipeCard';
 import { useFridgeStore, useMealStore } from '@/src/store';
-import { RECIPES } from '@/src/mocks/recipes';
 import { SEASONAL_INGREDIENTS } from '@/src/mocks/seasonal';
 import { getTodayKey } from '@/src/utils/date';
+import { useRecipes } from '@/src/hooks/useRecipes';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { items } = useFridgeStore();
   const todayKey = getTodayKey();
-  const summary = useMealStore((s) => s.getSummaryByDate(todayKey));
+  const summary = useMealStore((state) => state.getSummaryByDate(todayKey));
   const [selectedSeasonal, setSelectedSeasonal] = useState<string | null>(null);
+  const { recipes, error } = useRecipes(selectedSeasonal ?? undefined);
 
-  const fridgeNames = useMemo(() => new Set(items.map((i) => i.name)), [items]);
-  const expiringCount = items.filter((i) => i.expiresInDays <= 2).length;
-
+  const fridgeNames = useMemo(() => new Set(items.map((item) => item.name)), [items]);
+  const expiringCount = items.filter((item) => item.expiresInDays <= 2).length;
   const progress = Math.min(1, summary.kcal / 2000);
 
   const recommended = useMemo(() => {
-    return RECIPES.map((r) => {
-      const matchNames = r.ingredients.filter((i) => fridgeNames.has(i.name)).map((i) => i.name);
-      const missingNames = r.ingredients.filter((i) => !fridgeNames.has(i.name)).map((i) => i.name);
-      const seasonalScore = selectedSeasonal && r.ingredients.some((i) => i.name === selectedSeasonal) ? 1 : 0;
-      return { recipe: r, matchNames, missingNames, seasonalScore };
-    })
+    return recipes
+      .map((recipe) => {
+        const matchNames = recipe.ingredients
+          .filter((ingredient) => fridgeNames.has(ingredient.name))
+          .map((ingredient) => ingredient.name);
+        const missingNames = recipe.ingredients
+          .filter((ingredient) => !fridgeNames.has(ingredient.name))
+          .map((ingredient) => ingredient.name);
+        const seasonalScore = selectedSeasonal && recipe.ingredients.some((ingredient) => ingredient.name === selectedSeasonal) ? 1 : 0;
+        return { recipe, matchNames, missingNames, seasonalScore };
+      })
       .sort((a, b) => b.seasonalScore - a.seasonalScore || b.matchNames.length - a.matchNames.length)
       .slice(0, 3);
-  }, [fridgeNames, selectedSeasonal]);
+  }, [fridgeNames, recipes, selectedSeasonal]);
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <View className="flex-row items-center justify-between mb-5">
           <View>
-            <Text className="text-xs text-muted">오늘도 즐겁게 요리해요</Text>
-            <Text className="text-2xl font-extrabold text-text mt-1">안녕, 요리 친구!</Text>
+            <Text className="text-xs text-muted">Cook something good today</Text>
+            <Text className="text-2xl font-extrabold text-text mt-1">Hi, YoriZori user</Text>
           </View>
           <View className="w-12 h-12 rounded-full bg-[#FFE8D1] items-center justify-center">
-            <Text className="text-xl">🐰</Text>
+            <Text className="text-xl">YZ</Text>
           </View>
         </View>
 
-        <SectionHeader title="내 냉장고 요약" />
+        <SectionHeader title="Fridge summary" />
         <SoftCard>
           <View className="flex-row justify-between">
-            <StatPill label="보유 식재료" value={`${items.length}개`} />
-            <StatPill label="소비기한 임박" value={`${expiringCount}개`} accent="warn" />
+            <StatPill label="Ingredients" value={`${items.length}`} />
+            <StatPill label="Expiring soon" value={`${expiringCount}`} accent="warn" />
           </View>
         </SoftCard>
 
         <View className="h-4" />
 
-        <SectionHeader title="오늘 섭취 칼로리" />
+        <SectionHeader title="Today calories" />
         <SoftCard>
           <Text className="text-2xl font-extrabold text-text">{summary.kcal} kcal</Text>
-          <Text className="text-xs text-muted mt-1">목표 2,000 kcal</Text>
+          <Text className="text-xs text-muted mt-1">Goal 2,000 kcal</Text>
           <View className="h-3 rounded-full bg-[#F3E8DD] mt-3 overflow-hidden">
             <View style={{ width: `${Math.round(progress * 100)}%` }} className="h-3 bg-primary-orange" />
           </View>
@@ -70,7 +75,7 @@ export default function HomeScreen() {
 
         <View className="h-4" />
 
-        <SectionHeader title="5월 제철 식재료 추천" />
+        <SectionHeader title="Seasonal picks" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
           {SEASONAL_INGREDIENTS.map((item) => (
             <Chip
@@ -81,9 +86,13 @@ export default function HomeScreen() {
             />
           ))}
         </ScrollView>
-        <Text className="text-xs text-muted mb-4">선택한 제철 재료가 포함된 레시피를 먼저 추천해요</Text>
+        <Text className="text-xs text-muted mb-4">Recipes with the selected ingredient are shown first.</Text>
+        {error ? <Text className="text-xs text-muted mb-3">Backend recipe data is unavailable.</Text> : null}
 
-        <SectionHeader title="추천 레시피" actionLabel="더보기" onPress={() => router.push('/recipe')} />
+        <SectionHeader title="Recommended recipes" actionLabel="More" onPress={() => router.push('/recipe')} />
+        {!recommended.length ? (
+          <Text className="text-sm text-muted mb-4">No DB recipes loaded.</Text>
+        ) : null}
         {recommended.map(({ recipe, matchNames, missingNames }) => (
           <RecipeCard
             key={recipe.id}
@@ -96,7 +105,7 @@ export default function HomeScreen() {
           />
         ))}
 
-        <SoftButton label="내 레시피 더 찾기" variant="secondary" onPress={() => router.push('/recipe')} />
+        <SoftButton label="Find all recipes" variant="secondary" onPress={() => router.push('/recipe')} />
       </ScrollView>
     </Screen>
   );

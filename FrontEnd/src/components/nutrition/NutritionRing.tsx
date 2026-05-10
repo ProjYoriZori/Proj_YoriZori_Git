@@ -32,9 +32,9 @@ export default function NutritionRing({ carbs, protein, fat, calories }: Props) 
         )}
       />
       <View className="flex-row mt-4">
-        <Text className="text-xs text-muted mr-3">탄수화물</Text>
-        <Text className="text-xs text-muted mr-3">단백질</Text>
-        <Text className="text-xs text-muted">지방</Text>
+        <Text className="text-xs text-muted mr-3">Carbs</Text>
+        <Text className="text-xs text-muted mr-3">Protein</Text>
+        <Text className="text-xs text-muted">Fat</Text>
       </View>
     </View>
   );

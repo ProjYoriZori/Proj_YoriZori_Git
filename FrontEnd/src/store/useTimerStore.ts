@@ -13,7 +13,7 @@ type TimerState = {
 };
 
 export const useTimerStore = create<TimerState>((set, get) => ({
-  label: '조리 타이머',
+  label: 'Cooking timer',
   remainingSec: 0,
   isRunning: false,
   isVisible: false,

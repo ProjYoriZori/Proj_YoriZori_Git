@@ -25,7 +25,7 @@ export default function RootLayout() {
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              <Stack.Screen name="recipe/[id]" options={{ title: '레시피' }} />
+              <Stack.Screen name="recipe/[id]" options={{ title: 'Recipe' }} />
             </Stack>
             <FloatingTimer />
             <StatusBar style="dark" />

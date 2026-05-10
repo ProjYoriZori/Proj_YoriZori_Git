@@ -1,1 +1,1 @@
-export const SEASONAL_INGREDIENTS = ['달래', '냉이', '두릅', '딸기', '참나물'];
+export const SEASONAL_INGREDIENTS = ['Garlic', 'Mushroom', 'Tomato', 'Strawberry', 'Chive'];

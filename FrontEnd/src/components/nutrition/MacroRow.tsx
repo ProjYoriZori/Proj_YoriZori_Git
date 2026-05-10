@@ -12,15 +12,15 @@ export default function MacroRow({ carbs, protein, fat }: Props) {
     <View className="flex-row justify-between mt-4">
       <View className="bg-white rounded-3xl px-4 py-3 flex-1 mr-2 items-center">
         <Text className="text-base font-bold text-text">{carbs}g</Text>
-        <Text className="text-xs text-muted mt-1">탄수화물</Text>
+        <Text className="text-xs text-muted mt-1">Carbs</Text>
       </View>
       <View className="bg-white rounded-3xl px-4 py-3 flex-1 mr-2 items-center">
         <Text className="text-base font-bold text-text">{protein}g</Text>
-        <Text className="text-xs text-muted mt-1">단백질</Text>
+        <Text className="text-xs text-muted mt-1">Protein</Text>
       </View>
       <View className="bg-white rounded-3xl px-4 py-3 flex-1 items-center">
         <Text className="text-base font-bold text-text">{fat}g</Text>
-        <Text className="text-xs text-muted mt-1">지방</Text>
+        <Text className="text-xs text-muted mt-1">Fat</Text>
       </View>
     </View>
   );

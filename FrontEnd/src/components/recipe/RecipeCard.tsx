@@ -17,35 +17,41 @@ export default function RecipeCard({ recipe, matchCount, missingCount, matchedNa
   return (
     <Pressable onPress={onPress}>
       <SoftCard className="mb-4">
-        <Image source={{ uri: recipe.image }} className="w-full h-36 rounded-2xl" />
+        {recipe.image ? (
+          <Image source={{ uri: recipe.image }} className="w-full h-36 rounded-2xl" />
+        ) : (
+          <View className="w-full h-36 rounded-2xl bg-[#F3E8DD] items-center justify-center">
+            <Text className="text-xs text-muted">No DB image</Text>
+          </View>
+        )}
         <View className="mt-3">
           <Text className="text-lg font-extrabold text-text">{recipe.title}</Text>
           <Text className="text-sm text-muted mt-1">
-            {recipe.calories} kcal • 부족 {missingCount}개
+            {recipe.calories} kcal - missing {missingCount}
           </Text>
         </View>
         <View className="flex-row flex-wrap mt-3">
-          <Chip label={`일치 ${matchCount}`} />
-          {recipe.tags?.slice(0, 2).map((t) => (
-            <Chip key={t} label={t} />
+          <Chip label={`match ${matchCount}`} />
+          {recipe.tags?.slice(0, 2).map((tag) => (
+            <Chip key={tag} label={tag} />
           ))}
         </View>
         {matchedNames?.length ? (
           <View className="mt-2">
-            <Text className="text-xs text-muted mb-1">일치 재료</Text>
+            <Text className="text-xs text-muted mb-1">Matched ingredients</Text>
             <View className="flex-row flex-wrap">
-              {matchedNames.slice(0, 4).map((m) => (
-                <Chip key={m} label={m} />
+              {matchedNames.slice(0, 4).map((name) => (
+                <Chip key={name} label={name} />
               ))}
             </View>
           </View>
         ) : null}
         {missingNames?.length ? (
           <View className="mt-2">
-            <Text className="text-xs text-muted mb-1">부족 재료</Text>
+            <Text className="text-xs text-muted mb-1">Missing ingredients</Text>
             <View className="flex-row flex-wrap">
-              {missingNames.slice(0, 4).map((m) => (
-                <Chip key={m} label={m} />
+              {missingNames.slice(0, 4).map((name) => (
+                <Chip key={name} label={name} />
               ))}
             </View>
           </View>

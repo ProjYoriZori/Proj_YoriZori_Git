@@ -17,8 +17,8 @@ type DateMode = 'today' | 'yesterday' | 'custom';
 export default function NutritionScreen() {
   const [mode, setMode] = useState<DateMode>('today');
   const [customDate, setCustomDate] = useState('');
-  const getSummaryByDate = useMealStore((s) => s.getSummaryByDate);
-  const getMealsByDate = useMealStore((s) => s.getMealsByDate);
+  const getSummaryByDate = useMealStore((state) => state.getSummaryByDate);
+  const getMealsByDate = useMealStore((state) => state.getMealsByDate);
 
   const dateKey = useMemo(() => {
     if (mode === 'yesterday') return getYesterdayKey();
@@ -39,20 +39,20 @@ export default function NutritionScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text className="text-2xl font-extrabold text-text mb-3">영양</Text>
+        <Text className="text-2xl font-extrabold text-text mb-3">Nutrition</Text>
 
-        <SectionHeader title="날짜 선택" />
+        <SectionHeader title="Date" />
         <View className="flex-row flex-wrap mb-3">
-          <Chip label="오늘" selected={mode === 'today'} onPress={() => setMode('today')} />
-          <Chip label="어제" selected={mode === 'yesterday'} onPress={() => setMode('yesterday')} />
-          <Chip label="날짜" selected={mode === 'custom'} onPress={() => setMode('custom')} />
+          <Chip label="Today" selected={mode === 'today'} onPress={() => setMode('today')} />
+          <Chip label="Yesterday" selected={mode === 'yesterday'} onPress={() => setMode('yesterday')} />
+          <Chip label="Custom" selected={mode === 'custom'} onPress={() => setMode('custom')} />
         </View>
         {mode === 'custom' ? (
           <SoftInput placeholder="YYYY-MM-DD" value={customDate} onChangeText={setCustomDate} />
         ) : null}
 
         <View className="mt-6">
-          <SectionHeader title="섭취 요약" />
+          <SectionHeader title="Daily summary" />
           <SoftCard>
             <NutritionRing
               calories={summary.kcal}
@@ -65,19 +65,19 @@ export default function NutritionScreen() {
         </View>
 
         <View className="mt-6">
-          <SectionHeader title="권장 섭취량 대비" />
+          <SectionHeader title="Recommended intake" />
           <SoftCard>
-            <Text className="text-sm text-muted">칼로리 {pct.kcal}%</Text>
-            <Text className="text-sm text-muted mt-1">탄수화물 {pct.carbs}%</Text>
-            <Text className="text-sm text-muted mt-1">단백질 {pct.protein}%</Text>
-            <Text className="text-sm text-muted mt-1">지방 {pct.fat}%</Text>
+            <Text className="text-sm text-muted">Calories {pct.kcal}%</Text>
+            <Text className="text-sm text-muted mt-1">Carbs {pct.carbs}%</Text>
+            <Text className="text-sm text-muted mt-1">Protein {pct.protein}%</Text>
+            <Text className="text-sm text-muted mt-1">Fat {pct.fat}%</Text>
           </SoftCard>
         </View>
 
         <View className="mt-6">
-          <SectionHeader title="먹은 음식 목록" />
+          <SectionHeader title="Meals" />
           {meals.length === 0 ? (
-            <Text className="text-sm text-muted">아직 기록된 음식이 없어요</Text>
+            <Text className="text-sm text-muted">No meals logged yet.</Text>
           ) : (
             meals.map((meal) => (
               <SoftCard key={meal.id} className="mb-3">
