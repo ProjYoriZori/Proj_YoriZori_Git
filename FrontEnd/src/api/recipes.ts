@@ -1,13 +1,34 @@
 import { Platform } from 'react-native';
 import type { Recipe } from '@/src/types';
 
-const defaultBaseUrl = Platform.select({
-  android: 'http://10.0.2.2:8080',
-  default: 'http://localhost:8080',
-});
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function getDefaultBaseUrls(): string[] {
+  if (Platform.OS === 'android') {
+    return ['http://10.0.2.2:8080'];
+  }
+
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const { protocol, hostname } = window.location;
+    return unique([
+      `${protocol}//${hostname}:8080`,
+      'http://localhost:8080',
+      'http://127.0.0.1:8080',
+    ]);
+  }
+
+  return ['http://localhost:8080'];
+}
+
+function getApiBaseUrls(): string[] {
+  const configuredUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+  return configuredUrl ? [configuredUrl] : getDefaultBaseUrls();
+}
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || defaultBaseUrl || 'http://localhost:8080';
+  getApiBaseUrls()[0] || 'http://localhost:8080';
 
 function normalizeRecipe(recipe: Recipe): Recipe {
   return {
@@ -30,11 +51,25 @@ function normalizeRecipe(recipe: Recipe): Recipe {
 }
 
 async function request<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+  const attemptedUrls: string[] = [];
+  let lastError: Error | null = null;
+
+  for (const baseUrl of getApiBaseUrls()) {
+    const url = `${baseUrl}${path}`;
+    attemptedUrls.push(url);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+      return response.json() as Promise<T>;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
   }
-  return response.json() as Promise<T>;
+
+  throw new Error(`${lastError?.message || 'API request failed'} (${attemptedUrls.join(', ')})`);
 }
 
 export async function fetchRecipes(query?: string): Promise<Recipe[]> {

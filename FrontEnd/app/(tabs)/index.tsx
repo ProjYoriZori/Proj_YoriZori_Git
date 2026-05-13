@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const todayKey = getTodayKey();
   const summary = useMealStore((state) => state.getSummaryByDate(todayKey));
   const [selectedSeasonal, setSelectedSeasonal] = useState<string | null>(null);
-  const { recipes, error } = useRecipes(selectedSeasonal ?? undefined);
+  const { recipes, isLoading, error } = useRecipes(selectedSeasonal ?? undefined);
 
   const fridgeNames = useMemo(() => new Set(items.map((item) => item.name)), [items]);
   const expiringCount = items.filter((item) => item.expiresInDays <= 2).length;
@@ -90,7 +90,10 @@ export default function HomeScreen() {
         {error ? <Text className="text-xs text-muted mb-3">Backend recipe data is unavailable.</Text> : null}
 
         <SectionHeader title="Recommended recipes" actionLabel="More" onPress={() => router.push('/recipe')} />
-        {!recommended.length ? (
+        {isLoading ? (
+          <Text className="text-sm text-muted mb-4">Loading recipes...</Text>
+        ) : null}
+        {!isLoading && !recommended.length ? (
           <Text className="text-sm text-muted mb-4">No DB recipes loaded.</Text>
         ) : null}
         {recommended.map(({ recipe, matchNames, missingNames }) => (

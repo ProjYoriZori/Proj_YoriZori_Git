@@ -1,6 +1,8 @@
 package com.yorizori.config;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.boot.SpringApplication;
@@ -15,21 +17,35 @@ public class DotenvEnvironmentPostProcessor implements EnvironmentPostProcessor,
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMalformed()
-                .ignoreIfMissing()
-                .load();
-
         Map<String, Object> properties = new LinkedHashMap<>();
-        dotenv.entries().forEach(entry -> {
-            if (environment.getProperty(entry.getKey()) == null) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-        });
+        loadDotenv(".", environment, properties);
+        loadDotenv("BackEnd", environment, properties);
 
         if (!properties.isEmpty()) {
             environment.getPropertySources().addLast(new MapPropertySource(PROPERTY_SOURCE_NAME, properties));
         }
+    }
+
+    private void loadDotenv(
+            String directory,
+            ConfigurableEnvironment environment,
+            Map<String, Object> properties
+    ) {
+        if (!Files.exists(Path.of(directory, ".env"))) {
+            return;
+        }
+
+        Dotenv dotenv = Dotenv.configure()
+                .directory(directory)
+                .ignoreIfMalformed()
+                .ignoreIfMissing()
+                .load();
+
+        dotenv.entries().forEach(entry -> {
+            if (environment.getProperty(entry.getKey()) == null && !properties.containsKey(entry.getKey())) {
+                properties.put(entry.getKey(), entry.getValue());
+            }
+        });
     }
 
     @Override
