@@ -1,111 +1,138 @@
-# How to run — ProjYoriZori
+# How To Run ProjYoriZori
 
-이 문서는 로컬에서 프로젝트(BackEnd + FrontEnd)를 실행하기 위한 최소 명령어 모음입니다.
+이 문서는 로컬 개발 환경에서 `BackEnd`와 `FrontEnd`를 실행하는 최소 절차를 정리합니다.
 
----
+## Prerequisites
 
-**Backend (Spring Boot)**
+- Java 17 이상
+- Node.js LTS, npm
+- MySQL 8.0 또는 Google Cloud SQL MySQL
+- Windows PowerShell 권장
+- Android Studio 또는 Expo Go
 
-Prerequisites:
+## Backend
 
-- Java 17 설치
-- (Windows) PowerShell 사용 권장
+백엔드는 Spring Boot 3, Java 17, Gradle, Spring JDBC, MySQL을 사용합니다.
 
-환경 변수: 루트 `BackEnd` 폴더에 `.env` 파일을 두고 아래 값을 채웁니다.
+### 1. 환경 변수
+
+`BackEnd/.env` 파일을 만들고 실제 값은 로컬에만 보관합니다. 민감정보는 커밋하지 않습니다.
 
 ```env
 DB_HOST=127.0.0.1
-DB_PORT=3307
+DB_PORT=3306
+DB_NAME=yorizori_DB
+DB_USERNAME=testAccount
 DB_PASSWORD=your-db-password
 FOOD_API_KEY=your-food-api-key
+JWT_SECRET=change-this-local-secret
 CLOUD_SQL_CONNECTION_NAME=project-id:region:instance-name
 ```
 
-Cloud SQL Auth Proxy (로컬에서 Cloud SQL 연결 시):
+### 2. Cloud SQL Auth Proxy
+
+Cloud SQL을 사용할 때만 실행합니다.
 
 ```powershell
-# 프로젝트 루트에서 proxy 실행 파일이 있을 경우
-.\tools\cloud-sql-proxy.exe <CLOUD_SQL_CONNECTION_NAME> --port 3307
-# 연결 확인
-Test-NetConnection 127.0.0.1 -Port 3307
+.\tools\cloud-sql-proxy.exe <CLOUD_SQL_CONNECTION_NAME> --port 3306
+Test-NetConnection 127.0.0.1 -Port 3306
 ```
 
-빌드 및 실행 (PowerShell):
+### 3. 실행
 
 ```powershell
-# 프로젝트 루트에서
 cd BackEnd
-# 1) Gradle로 빌드
-.\gradlew.bat build
-# 2) 배포용 JAR 실행 (local profile 사용)
-java -jar build\libs\yorizori-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
-
-# 또는 개발용으로 바로 실행
 .\gradlew.bat bootRun --args='--spring.profiles.active=local'
 ```
 
-기본 포트: `http://localhost:8080`
-
-관리자 레시피 수집 예시:
+또는 빌드 후 JAR로 실행합니다.
 
 ```powershell
-curl -X POST "http://localhost:8080/api/v1/admin/ingest/recipes?startIdx=1&endIdx=20"
+cd BackEnd
+.\gradlew.bat build
+java -jar build\libs\yorizori-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
 ```
 
----
+기본 주소는 `http://localhost:8080`입니다.
 
-**Frontend (Expo / React Native)**
+### 4. 레시피 DB 수집
 
-Prerequisites:
+식품의약품안전처 조리식품 레시피 DB(`COOKRCP01`)를 수집합니다.
 
-- Node.js (LTS 권장)
-- npm
-- Android Studio (Android 에뮬레이터) 또는 Xcode (macOS, iOS 시뮬레이터)
+```powershell
+curl -X POST "http://localhost:8080/api/v1/admin/ingest/recipes?startIdx=1&endIdx=100"
+```
 
-설치 및 실행:
+### 5. 주요 API 확인
 
-```bash
-# FrontEnd 디렉터리로 이동
+```powershell
+Invoke-RestMethod "http://localhost:8080/api/v1/recipes?limit=3"
+Invoke-RestMethod "http://localhost:8080/api/v1/seasonal-ingredients"
+```
+
+인증이 필요한 API는 회원가입 또는 로그인 응답의 `accessToken`을 사용합니다.
+
+```powershell
+$body = @{
+  email = "test@example.com"
+  password = "password1234"
+  nickname = "tester"
+  age = 24
+  heightCm = 175
+  weightKg = 70
+  goal = "MAINTAIN"
+  activityLevel = "NORMAL"
+} | ConvertTo-Json
+
+$auth = Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/v1/auth/signup" -ContentType "application/json" -Body $body
+$headers = @{ Authorization = "Bearer $($auth.accessToken)" }
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/pantry-items" -Headers $headers
+```
+
+## Frontend
+
+프론트엔드는 Expo Router 기반 React Native 앱입니다.
+
+```powershell
 cd FrontEnd
-# 의존성 설치
 npm install
-# 개발 서버 시작 (Metro / Expo)
 npm run start
-# 안드로이드 에뮬레이터에서 직접 실행
+```
+
+플랫폼별 실행:
+
+```powershell
 npm run android
-# iOS 시뮬레이터 (macOS 전용)
 npm run ios
-# 웹으로 열기
 npm run web
 ```
 
-프로젝트 초기화(리셋):
+백엔드 주소를 명시하려면 `EXPO_PUBLIC_API_BASE_URL`을 사용합니다.
 
-```bash
-npm run reset-project
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
 ```
 
-Expo 관련: `npx expo start` 또는 `npm run start` 후 Expo DevTools에서 Expo Go 또는 시뮬레이터를 선택합니다.
+Android 에뮬레이터는 기본적으로 `http://10.0.2.2:8080`을 사용합니다.
 
----
+## Verification
 
-**동시 실행(개발 예시)**
+```powershell
+cd BackEnd
+.\gradlew.bat compileJava
+.\gradlew.bat test
+```
 
-- 터미널 A: 백엔드
-  - `cd BackEnd` → `.\gradlew.bat bootRun` 또는 `java -jar ...`
-- 터미널 B: 프론트엔드
-  - `cd FrontEnd` → `npm run start`
+```powershell
+cd FrontEnd
+npm run lint
+npx tsc --noEmit
+```
 
----
+## Troubleshooting
 
-문제 발생 시 체크리스트:
-
-- `.env` 값이 정확한지 확인
-- `.\gradlew.bat bootRun --args='--spring.profiles.active=local'` 실행 전 Cloud SQL Proxy가 실행 중인지 확인 (127.0.0.1:3307)
-- `Connection refused` 또는 `Communications link failure`가 나오면 빌드 문제가 아니라 DB 포트가 닫힌 상태입니다.
-- 백엔드 로그에 DB 연결 예외가 없는지 확인
-- 프론트엔드: Expo CLI 출력에 에러가 없는지 확인
-
----
-
-파일 위치: 리포 루트의 `BackEnd` 및 `FrontEnd` 폴더를 기준으로 작성되었습니다.
+- `Connection refused`: Cloud SQL Auth Proxy 또는 MySQL 포트를 확인합니다.
+- `Access denied`: `DB_USERNAME`, `DB_PASSWORD`, DB 권한을 확인합니다.
+- 레시피가 비어 있음: `/api/v1/admin/ingest/recipes`를 먼저 실행합니다.
+- 인증 API 실패: 요청 JSON 필드명과 `JWT_SECRET` 설정을 확인합니다.
+- Expo에서 백엔드 호출 실패: 같은 네트워크, CORS, `EXPO_PUBLIC_API_BASE_URL`을 확인합니다.

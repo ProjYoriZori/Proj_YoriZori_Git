@@ -23,9 +23,14 @@ public class RecipeController {
     @GetMapping
     public ResponseEntity<List<RecipeResponse>> findRecipes(
             @RequestParam(required = false) String query,
-            @RequestParam(defaultValue = "50") int limit
+            @RequestParam(required = false) List<String> ingredients,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(defaultValue = "latest") String sort
     ) {
-        return ResponseEntity.ok(recipeQueryService.findRecipes(query, limit));
+        int resolvedSize = size != null ? size : (limit != null ? limit : 50);
+        return ResponseEntity.ok(recipeQueryService.findRecipes(query, ingredients, page, resolvedSize, sort));
     }
 
     @GetMapping("/{recipeId}")

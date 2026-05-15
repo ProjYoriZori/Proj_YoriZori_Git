@@ -1,107 +1,126 @@
-# BackEnd 파일 구조 정리
+# BackEnd Structure
 
-이 문서는 `BackEnd` 폴더 안에 있는 주요 디렉터리와 각 폴더의 역할을 빠르게 이해할 수 있도록 정리한 자료입니다.
+`BackEnd` 디렉터리의 주요 파일과 패키지 역할을 정리합니다.
 
-## 전체 구조
+## Directory
 
 ```text
 BackEnd/
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── com/yorizori/
-│       │       ├── config/
-│       │       ├── foodapi/
-│       │       └── recipe/
-│       └── resources/
-│           ├── application-local.yml
-│           ├── db/
-│           └── META-INF/
-├── bin/
-├── build/
-├── gradle/
-├── chats/
-├── tools/
-├── build.gradle
-├── settings.gradle
-└── gradlew / gradlew.bat
+  build.gradle
+  settings.gradle
+  gradlew
+  gradlew.bat
+  src/
+    main/
+      java/com/yorizori/
+        auth/
+        config/
+        feature/
+        foodapi/
+        recipe/
+      resources/
+        application-local.yml
+        db/schema.sql
+        META-INF/
+    test/
+      java/com/yorizori/
+        auth/
+  gradle/
+  chats/
+  bin/
+  build/
 ```
 
-## 폴더별 역할
+## Packages
 
-### `src/main/java/com/yorizori`
+### `auth`
 
-실제 애플리케이션 로직이 들어 있는 핵심 소스 코드입니다.
+회원가입, 로그인, 토큰 발급, 인증 사용자 식별을 담당합니다.
+
+- `AuthController`: `/api/v1/auth/signup`, `/login`, `/refresh`
+- `AuthService`: 회원 생성, 로그인 검증, 토큰 재발급
+- `AuthDtos`: 인증/프로필 요청 및 응답 DTO
+- `JwtTokenProvider`: HMAC SHA-256 기반 JWT 생성/검증
+- `PasswordHasher`: PBKDF2 비밀번호 해시
+- `AuthSupport`: `Authorization: Bearer` 또는 `X-User-Id`에서 사용자 ID 추출
 
 ### `config`
 
-Spring 설정과 애플리케이션 시작 시 필요한 공통 설정이 들어 있습니다.
+공통 설정과 실행 시 DB 보정 로직을 담당합니다.
 
-- `DotenvEnvironmentPostProcessor.java`: `.env` 파일 값을 Spring 환경 변수로 읽어들이는 역할
-- `SchemaMigrationRunner.java`: 실행 시 DB 스키마 관련 작업을 돕는 초기화 코드
-- `WebConfig.java`: 웹 동작과 관련된 설정을 담당
+- `DotenvEnvironmentPostProcessor`: `.env` 값을 Spring 환경 변수로 로드
+- `SchemaMigrationRunner`: 기존 테이블 보정과 기능 테이블 생성
+- `WebConfig`: CORS 설정
+
+### `feature`
+
+프론트 기능 요구사항에 대응하는 애플리케이션 API 계층입니다.
+
+- `AppFeatureController`: 냉장고, 기피 재료, 추천, 장보기, 영양, 즐겨찾기, 제철, OCR, 바코드, 커스텀푸드 API
+- `AppFeatureService`: 추천 매칭, 부족 재료 계산, 권장 섭취량 계산, OCR 텍스트 파싱
+- `AppFeatureRepository`: `JdbcTemplate` 기반 기능 테이블 CRUD
+- `FeatureDtos`: 기능별 요청/응답 DTO
 
 ### `foodapi`
 
-식품의약품안전처 레시피 OpenAPI와 통신하는 코드가 들어 있습니다.
+식품의약품안전처 조리식품 레시피 OpenAPI 통신을 담당합니다.
 
-- `FoodApiClient.java`: API 호출 담당
-- `FoodApiProperties.java`: API 키, 엔드포인트 같은 설정값 관리
-- `FoodApiFetchResult.java`: 호출 결과를 담는 데이터 구조
-- `FoodApiParseException.java`: 응답 파싱 실패 시 사용하는 예외
+- `FoodApiClient`: OpenAPI HTTP 요청
+- `FoodApiProperties`: `food.api.*` 설정 바인딩
+- `FoodApiFetchResult`: 원문 응답과 파싱 결과
+- `FoodApiParseException`: XML 파싱 실패 예외
 
 ### `recipe`
 
-레시피 도메인과 관련된 기능이 모여 있는 영역입니다.
+레시피 수집, 저장, 조회 기능입니다.
 
-- `dto`: 요청/응답용 데이터 전송 객체
-- `repository`: DB 조회와 저장을 담당하는 계층
-- `service`: 비즈니스 로직과 처리 흐름을 담당하는 계층
-- `web`: REST API 컨트롤러 등 외부 요청을 받는 계층
+- `recipe.web`
+  - `RecipeController`: 레시피 목록/상세 조회
+  - `RecipeIngestController`: 레시피 수집 관리자 API
+  - `ApiExceptionHandler`: 공통 예외 응답
+- `recipe.service`
+  - `RecipeQueryService`: 레시피 조회 유스케이스
+  - `RecipeIngestService`: OpenAPI 수집 유스케이스
+- `recipe.repository`
+  - `RecipeQueryRepository`: 검색, 상세, 추천 후보 조회
+  - `RecipeIngestRepository`: 레시피/재료/단계/이미지 저장
+- `recipe.dto`
+  - 레시피, 영양, 재료, OpenAPI 응답 DTO
 
-### `src/main/resources`
+## Resources
 
-실행 시 함께 읽히는 설정 파일과 정적 리소스가 들어 있습니다.
+### `application-local.yml`
 
-- `application-local.yml`: 로컬 실행용 설정
-- `db/`: SQL 스키마나 초기화 관련 파일
-- `META-INF/`: Spring 또는 JVM 실행 시 참고하는 메타 정보
+로컬 프로필 설정입니다.
 
-### `bin/main`
+- `.env`, `BackEnd/.env` import
+- MySQL datasource
+- 식약처 OpenAPI 설정
 
-컴파일된 클래스와 리소스가 복사된 실행 산출물입니다.
+### `db/schema.sql`
 
-이 폴더는 소스 코드의 원본이 아니라, 실행 또는 배포를 위해 생성된 결과물에 가깝습니다.
+초기 레시피 수집 테이블 정의입니다. 현재 운영 경로에서는 `SchemaMigrationRunner`가 추가 기능 테이블을 보강 생성합니다.
+
+## Generated Directories
+
+### `bin`
+
+컴파일된 클래스와 리소스가 들어가는 산출물 디렉터리입니다. 직접 수정하지 않습니다.
 
 ### `build`
 
-Gradle 빌드 결과물이 생성되는 폴더입니다.
+Gradle 빌드 결과물 디렉터리입니다. 직접 수정하지 않습니다.
 
-- 컴파일된 클래스
-- 패키징된 JAR
-- 중간 생성물
+## Tests
 
-### `gradle`
+현재 테스트는 인증 유틸리티 중심으로 구성되어 있습니다.
 
-Gradle Wrapper 관련 파일이 들어 있습니다.
+- `PasswordHasherTest`: 비밀번호 해시/검증
+- `JwtTokenProviderTest`: Access/Refresh Token 생성과 파싱
 
-이 폴더 덕분에 로컬에 Gradle이 없어도 프로젝트가 동일한 버전으로 빌드됩니다.
+실행:
 
-### `chats`
-
-작업 중 기록한 대화/작업 로그 문서가 들어 있는 폴더입니다.
-
-### `tools`
-
-Cloud SQL Proxy 같은 실행 보조 도구를 두는 폴더입니다.
-
-## 루트 파일 역할
-
-- `build.gradle`: 의존성과 빌드 설정
-- `settings.gradle`: 프로젝트 이름과 포함 모듈 설정
-- `gradlew`, `gradlew.bat`: Gradle Wrapper 실행 스크립트
-
-## 참고
-
-- 실제 개발 시 수정 대상은 대부분 `src/main/java`와 `src/main/resources`입니다.
-- `bin`과 `build`는 생성물이라 보통 직접 수정하지 않습니다.
+```powershell
+cd BackEnd
+.\gradlew.bat test
+```

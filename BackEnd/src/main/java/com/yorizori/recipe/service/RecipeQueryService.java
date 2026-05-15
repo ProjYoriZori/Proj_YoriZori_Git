@@ -14,8 +14,8 @@ public class RecipeQueryService {
         this.repository = repository;
     }
 
-    public List<RecipeResponse> findRecipes(String query, int limit) {
-        return repository.findRecipes(query, limit);
+    public List<RecipeResponse> findRecipes(String query, List<String> ingredients, int page, int size, String sort) {
+        return repository.findRecipes(query, ingredients, page, size, sort);
     }
 
     public RecipeResponse findRecipe(long recipeId) {

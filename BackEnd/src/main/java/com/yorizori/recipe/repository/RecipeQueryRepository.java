@@ -6,8 +6,10 @@ import com.yorizori.recipe.dto.RecipeResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -21,7 +23,7 @@ public class RecipeQueryRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<RecipeResponse> findRecipes(String query, int limit) {
+    public List<RecipeResponse> findRecipes(String query, List<String> ingredientKeywords, int page, int size, String sort) {
         StringBuilder sql = new StringBuilder(baseRecipeSelect())
                 .append(" WHERE r.is_active = TRUE");
         List<Object> args = new ArrayList<>();
@@ -45,11 +47,62 @@ public class RecipeQueryRepository {
             args.add(keyword);
         }
 
-        sql.append(" ORDER BY r.recipe_id DESC LIMIT ?");
-        args.add(Math.max(1, Math.min(limit, 100)));
+        if (ingredientKeywords != null && !ingredientKeywords.isEmpty()) {
+            sql.append("""
+                     AND EXISTS (
+                         SELECT 1
+                           FROM recipe_ingredients ri
+                           JOIN ingredients ing ON ing.ingredient_id = ri.ingredient_id
+                          WHERE ri.recipe_id = r.recipe_id
+                    """);
+            sql.append(" AND (");
+            for (int i = 0; i < ingredientKeywords.size(); i++) {
+                if (i > 0) {
+                    sql.append(" OR ");
+                }
+                sql.append("ing.name LIKE ? OR ri.original_name LIKE ?");
+                String keyword = "%" + ingredientKeywords.get(i).trim() + "%";
+                args.add(keyword);
+                args.add(keyword);
+            }
+            sql.append("))");
+        }
+
+        sql.append(orderBy(sort));
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int safePage = Math.max(0, page);
+        sql.append(" LIMIT ? OFFSET ?");
+        args.add(safeSize);
+        args.add(safePage * safeSize);
 
         return jdbcTemplate.query(sql.toString(), this::mapRecipeRow, args.toArray()).stream()
                 .map(row -> toRecipeResponse(row, findIngredients(row.id()), List.of()))
+                .toList();
+    }
+
+    public List<RecipeResponse> recommendRecipes(List<String> ownedIngredients, List<String> avoidIngredients, int limit) {
+        List<RecipeResponse> candidates = findRecipes(null, List.of(), 0, Math.max(limit * 5, 50), "latest");
+        Set<String> owned = normalizeSet(ownedIngredients);
+        Set<String> avoided = normalizeSet(avoidIngredients);
+        return candidates.stream()
+                .filter(recipe -> recipe.ingredients().stream()
+                        .noneMatch(ingredient -> containsAny(ingredient.name(), avoided)))
+                .map(recipe -> withMatch(recipe, owned))
+                .filter(recipe -> recipe.matchRate() > 0 || owned.isEmpty())
+                .sorted((left, right) -> {
+                    int matchCompare = Double.compare(right.matchRate(), left.matchRate());
+                    if (matchCompare != 0) {
+                        return matchCompare;
+                    }
+                    return Integer.compare(left.missingCount(), right.missingCount());
+                })
+                .limit(Math.max(1, Math.min(limit, 100)))
+                .toList();
+    }
+
+    public List<String> findIngredientNames(long recipeId) {
+        return findIngredients(recipeId).stream()
+                .map(RecipeIngredientResponse::name)
                 .toList();
     }
 
@@ -160,8 +213,80 @@ public class RecipeQueryRepository {
                 List.of(),
                 ingredients,
                 steps,
-                nutrition
+                nutrition,
+                0,
+                List.of(),
+                ingredients.stream().map(RecipeIngredientResponse::name).toList(),
+                ingredients.size()
         );
+    }
+
+    private RecipeResponse withMatch(RecipeResponse recipe, Set<String> ownedIngredients) {
+        List<String> matched = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+        for (RecipeIngredientResponse ingredient : recipe.ingredients()) {
+            if (containsAny(ingredient.name(), ownedIngredients)) {
+                matched.add(ingredient.name());
+            } else {
+                missing.add(ingredient.name());
+            }
+        }
+        double matchRate = recipe.ingredients().isEmpty()
+                ? 0
+                : BigDecimal.valueOf((matched.size() * 100.0) / recipe.ingredients().size())
+                        .setScale(1, RoundingMode.HALF_UP)
+                        .doubleValue();
+        return new RecipeResponse(
+                recipe.id(),
+                recipe.title(),
+                recipe.image(),
+                recipe.method(),
+                recipe.category(),
+                recipe.calories(),
+                recipe.tags(),
+                recipe.ingredients(),
+                recipe.steps(),
+                recipe.nutrition(),
+                matchRate,
+                matched,
+                missing,
+                missing.size()
+        );
+    }
+
+    private String orderBy(String sort) {
+        if ("calorieAsc".equalsIgnoreCase(sort)) {
+            return " ORDER BY r.calorie_kcal IS NULL, r.calorie_kcal ASC, r.recipe_id DESC";
+        }
+        if ("calorieDesc".equalsIgnoreCase(sort)) {
+            return " ORDER BY r.calorie_kcal DESC, r.recipe_id DESC";
+        }
+        if ("name".equalsIgnoreCase(sort)) {
+            return " ORDER BY r.name ASC, r.recipe_id DESC";
+        }
+        return " ORDER BY r.recipe_id DESC";
+    }
+
+    private static Set<String> normalizeSet(List<String> values) {
+        Set<String> normalized = new HashSet<>();
+        if (values == null) {
+            return normalized;
+        }
+        for (String value : values) {
+            if (hasText(value)) {
+                normalized.add(normalize(value));
+            }
+        }
+        return normalized;
+    }
+
+    private static boolean containsAny(String value, Set<String> candidates) {
+        if (candidates.isEmpty() || !hasText(value)) {
+            return false;
+        }
+        String normalizedValue = normalize(value);
+        return candidates.stream().anyMatch(candidate ->
+                normalizedValue.contains(candidate) || candidate.contains(normalizedValue));
     }
 
     private static boolean hasText(String value) {
@@ -174,6 +299,10 @@ public class RecipeQueryRepository {
 
     private static String nullToDefault(String value, String fallback) {
         return hasText(value) ? value : fallback;
+    }
+
+    private static String normalize(String value) {
+        return value.replaceAll("\\s+", "").toLowerCase();
     }
 
     private static int toInt(BigDecimal value) {

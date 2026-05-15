@@ -12,6 +12,10 @@ public record RecipeResponse(
         List<String> tags,
         List<RecipeIngredientResponse> ingredients,
         List<String> steps,
-        NutritionResponse nutrition
+        NutritionResponse nutrition,
+        double matchRate,
+        List<String> matchedIngredients,
+        List<String> missingIngredients,
+        int missingCount
 ) {
 }
