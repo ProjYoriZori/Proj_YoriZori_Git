@@ -96,21 +96,21 @@ function parsePublicRecipeSteps(recipe) {
 }
 
 function normalizeStep(raw, index = 0) {
-  if (typeof raw === 'string') {
+  if (typeof raw === "string") {
     return {
       id: index + 1,
       stepNo: index + 1,
       instruction: raw,
-      imageUrl: '',
+      imageUrl: "",
     };
   }
 
   return {
     id: raw?.id || raw?.stepId || raw?.step_id || index + 1,
     stepNo: raw?.stepNo || raw?.step_no || index + 1,
-    instruction: raw?.instruction || raw?.description || raw?.text || '',
+    instruction: raw?.instruction || raw?.description || raw?.text || "",
     durationMin: raw?.durationMin || raw?.duration_min,
-    imageUrl: raw?.imageUrl || raw?.image_url || '',
+    imageUrl: raw?.imageUrl || raw?.image_url || "",
   };
 }
 
