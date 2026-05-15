@@ -142,8 +142,8 @@ Add-Section $lines "Verification Commands"
 $lines.Add('- `cd BackEnd; .\gradlew.bat build`')
 $lines.Add('- `cd BackEnd; .\gradlew.bat bootRun --args="--spring.profiles.active=local"`')
 $lines.Add('- `Invoke-RestMethod http://localhost:8080/api/v1/recipes?limit=3`')
-$lines.Add('- `cd FrontEnd; npx tsc --noEmit`')
-$lines.Add('- `cd FrontEnd; npm run lint`')
+$lines.Add('- `cd FrontEnd_In; npx tsc --noEmit`')
+$lines.Add('- `cd FrontEnd_In; npm run lint`')
 
 $resolvedOutput = Join-Path $script:RepoRoot $OutputPath
 $lines | Set-Content -LiteralPath $resolvedOutput -Encoding UTF8

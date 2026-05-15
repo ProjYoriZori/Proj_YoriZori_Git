@@ -46,7 +46,7 @@ cd BackEnd
 ## Frontend Verification Commands
 
 ```powershell
-cd FrontEnd
+cd FrontEnd_In
 npm run lint
 npx tsc --noEmit
 ```

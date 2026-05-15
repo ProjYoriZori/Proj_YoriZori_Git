@@ -2,12 +2,11 @@ spring:
   config:
     activate:
       on-profile: local
-    import: optional:file:.env[.properties],optional:file:BackEnd/.env[.properties]
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:yorizori_DB}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-    username: ${DB_USERNAME:testAccount}
-    password: ${DB_PASSWORD}
+    username: ${DB_CONNECTION_USERNAME:${DB_USERNAME:testAccount}}
+    password: ${DB_CONNECTION_PASSWORD:${DB_PASSWORD}}
   sql:
     init:
       mode: never
