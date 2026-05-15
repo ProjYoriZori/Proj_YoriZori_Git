@@ -3,6 +3,7 @@ package com.yorizori.recipe.repository;
 import com.yorizori.recipe.dto.NutritionResponse;
 import com.yorizori.recipe.dto.RecipeIngredientResponse;
 import com.yorizori.recipe.dto.RecipeResponse;
+import com.yorizori.recipe.dto.RecipeStepResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -76,7 +77,7 @@ public class RecipeQueryRepository {
         args.add(safePage * safeSize);
 
         return jdbcTemplate.query(sql.toString(), this::mapRecipeRow, args.toArray()).stream()
-                .map(row -> toRecipeResponse(row, findIngredients(row.id()), List.of()))
+            .map(row -> toRecipeResponse(row, findIngredients(row.id()), List.of(), List.of()))
                 .toList();
     }
 
@@ -116,7 +117,7 @@ public class RecipeQueryRepository {
             if (row == null) {
                 return Optional.empty();
             }
-            return Optional.of(toRecipeResponse(row, findIngredients(row.id()), findSteps(row.id())));
+            return Optional.of(toRecipeResponse(row, findIngredients(row.id()), findSteps(row.id()), findStepDetails(row.id())));
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
@@ -166,7 +167,7 @@ public class RecipeQueryRepository {
         ), recipeId);
     }
 
-    private List<String> findSteps(long recipeId) {
+        private List<String> findSteps(long recipeId) {
         String sql = """
                 SELECT instruction
                   FROM recipe_steps
@@ -175,6 +176,22 @@ public class RecipeQueryRepository {
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("instruction"), recipeId);
     }
+
+        private List<RecipeStepResponse> findStepDetails(long recipeId) {
+        String sql = """
+            SELECT step_no,
+                   description,
+                   image_url
+              FROM recipe_steps
+             WHERE recipe_id = ?
+             ORDER BY step_no
+            """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new RecipeStepResponse(
+            rs.getInt("step_no"),
+            nullToEmpty(rs.getString("description")),
+            nullToEmpty(rs.getString("image_url"))
+        ), recipeId);
+        }
 
     private RecipeRow mapRecipeRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new RecipeRow(
@@ -194,7 +211,8 @@ public class RecipeQueryRepository {
     private RecipeResponse toRecipeResponse(
             RecipeRow row,
             List<RecipeIngredientResponse> ingredients,
-            List<String> steps
+            List<String> steps,
+            List<RecipeStepResponse> stepDetails
     ) {
         NutritionResponse nutrition = new NutritionResponse(
                 toInt(row.calorieKcal()),
@@ -213,6 +231,7 @@ public class RecipeQueryRepository {
                 List.of(),
                 ingredients,
                 steps,
+                stepDetails,
                 nutrition,
                 0,
                 List.of(),
@@ -246,6 +265,7 @@ public class RecipeQueryRepository {
                 recipe.tags(),
                 recipe.ingredients(),
                 recipe.steps(),
+                recipe.stepDetails(),
                 recipe.nutrition(),
                 matchRate,
                 matched,

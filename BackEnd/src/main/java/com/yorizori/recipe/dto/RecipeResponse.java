@@ -12,6 +12,7 @@ public record RecipeResponse(
         List<String> tags,
         List<RecipeIngredientResponse> ingredients,
         List<String> steps,
+        List<RecipeStepResponse> stepDetails,
         NutritionResponse nutrition,
         double matchRate,
         List<String> matchedIngredients,

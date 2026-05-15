@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, Chip, EmptyState, Field, IconButton, PrimaryButton, SectionHeader } from '../components/ui';
+import { api } from '../api/client';
 import { useAppData } from '../context/AppDataContext';
 import { colors, globalStyles, shadow } from '../theme';
 import { getMatchInfo } from '../utils/recipes';
@@ -74,12 +75,43 @@ export default function RecipeDetailScreen({ navigation, route }) {
     addMissingIngredientsToShopping,
     addNutritionLogFromRecipe,
   } = useAppData();
-  const recipe = recipes.find((item) => item.id === String(route.params?.recipeId));
+  const recipeId = String(route.params?.recipeId || '');
+  const [recipe, setRecipe] = useState(() => recipes.find((item) => item.id === recipeId) || null);
   const [mealType, setMealType] = useState('점심');
   const [logVisible, setLogVisible] = useState(false);
   const [timerVisible, setTimerVisible] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    const initialRecipe = recipes.find((item) => item.id === recipeId) || null;
+    if (initialRecipe) {
+      setRecipe(initialRecipe);
+    }
+  }, [recipeId, recipes]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!recipeId) return undefined;
+
+    const loadRecipeDetail = async () => {
+      try {
+        const fetchedRecipe = await api.getRecipe(recipeId);
+        if (!cancelled && fetchedRecipe) {
+          setRecipe(fetchedRecipe);
+        }
+      } catch {
+        // Keep the list snapshot if the detail request fails.
+      }
+    };
+
+    loadRecipeDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [recipeId]);
 
   const { width, height } = Dimensions.get('window');
   const startPosition = { x: width - 78, y: height - 220 };
@@ -201,6 +233,9 @@ export default function RecipeDetailScreen({ navigation, route }) {
                   <Text style={styles.stepNoText}>{step.stepNo}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
+                  {step.imageUrl ? (
+                    <Image source={{ uri: step.imageUrl }} style={styles.stepImage} />
+                  ) : null}
                   <Text style={styles.stepText}>{step.instruction}</Text>
                   {step.durationMin ? (
                     <Text style={styles.stepTime}>{step.durationMin}분 예상</Text>
@@ -314,6 +349,13 @@ const styles = StyleSheet.create({
   nutritionStat: {
     flex: 1,
     minHeight: 82,
+  stepImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    marginBottom: 10,
+    backgroundColor: colors.surfaceAlt,
+  },
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
