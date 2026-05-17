@@ -40,7 +40,31 @@ export function setAuthToken(token) {
   authToken = token || null;
 }
 
+const AUTH_REQUIRED_PREFIXES = [
+  ENDPOINTS.me,
+  ENDPOINTS.pantryItems,
+  ENDPOINTS.avoidIngredients,
+  ENDPOINTS.recommend,
+  ENDPOINTS.shoppingItems,
+  ENDPOINTS.shoppingGenerate,
+  ENDPOINTS.nutritionLogs,
+  ENDPOINTS.nutritionDailySummary,
+  ENDPOINTS.favorites,
+  ENDPOINTS.customFoods,
+];
+
+function requiresAuth(path) {
+  const pathOnly = String(path || "").split("?")[0];
+  return AUTH_REQUIRED_PREFIXES.some(
+    (prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`),
+  );
+}
+
 async function request(path, options = {}) {
+  if (!authToken && requiresAuth(path)) {
+    throw new Error("Authentication required.");
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method || "GET",
     headers: {

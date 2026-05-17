@@ -1,26 +1,33 @@
 export function calculateDRI(profile) {
   if (!profile?.age || !profile?.height || !profile?.weight) {
-    return { calories: 2000, carbs: 275, protein: 55, fat: 55, sodium: 2000 };
+    return null;
   }
 
-  const isMale = ['MALE', '남성', 'male'].includes(profile.gender);
+  const isMale = ["MALE", "남성", "male"].includes(profile.gender);
   const bmr = isMale
-    ? 88.362 + 13.397 * profile.weight + 4.799 * profile.height - 5.677 * profile.age
-    : 447.593 + 9.247 * profile.weight + 3.098 * profile.height - 4.33 * profile.age;
+    ? 88.362 +
+      13.397 * profile.weight +
+      4.799 * profile.height -
+      5.677 * profile.age
+    : 447.593 +
+      9.247 * profile.weight +
+      3.098 * profile.height -
+      4.33 * profile.age;
 
-  const activityMultiplier = {
-    LOW: 1.2,
-    낮음: 1.2,
-    NORMAL: 1.55,
-    보통: 1.55,
-    HIGH: 1.725,
-    높음: 1.725,
-  }[profile.activityLevel || profile.activity_level] || 1.55;
+  const activityMultiplier =
+    {
+      LOW: 1.2,
+      낮음: 1.2,
+      NORMAL: 1.55,
+      보통: 1.55,
+      HIGH: 1.725,
+      높음: 1.725,
+    }[profile.activityLevel || profile.activity_level] || 1.55;
 
   const goal = profile.goal || profile.goalType || profile.goal_type;
   let calories = bmr * activityMultiplier;
-  if (['DIET', '다이어트'].includes(goal)) calories -= 300;
-  if (['BULK', 'BULKUP', '벌크업'].includes(goal)) calories += 300;
+  if (["DIET", "다이어트"].includes(goal)) calories -= 300;
+  if (["BULK", "BULKUP", "벌크업"].includes(goal)) calories += 300;
 
   const roundedCalories = Math.max(1200, Math.round(calories));
   return {
@@ -69,7 +76,7 @@ export function formatKoreanDate(date) {
   const today = dateKey(new Date());
   const yesterday = dateKey(addDays(new Date(), -1));
   const selected = dateKey(date);
-  if (selected === today) return '오늘';
-  if (selected === yesterday) return '어제';
+  if (selected === today) return "오늘";
+  if (selected === yesterday) return "어제";
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 }

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -32,14 +33,22 @@ function StatBox({ icon, label, value, color }) {
   );
 }
 
-function RecipeTile({ recipe, pantryItems, onPress }) {
+function RecipeTile({ recipe, pantryItems, onPress, tileWidth }) {
   const match = getMatchInfo(recipe, pantryItems);
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.recipeTile, pressed && { opacity: 0.86 }]}
+      style={({ pressed }) => [
+        styles.recipeTile,
+        { width: tileWidth },
+        pressed && { opacity: 0.86 },
+      ]}
     >
-      <Image source={{ uri: recipe.imageUrl }} style={styles.recipeImage} />
+      <Image
+        source={{ uri: recipe.imageUrl }}
+        style={styles.recipeImage}
+        resizeMode="contain"
+      />
       <View style={styles.recipeBody}>
         <Text style={styles.recipeName} numberOfLines={1}>
           {recipe.name}
@@ -72,6 +81,11 @@ export default function HomeScreen({ navigation }) {
     seasonalIngredients,
   } = useAppData();
   const [selectedSeasonal, setSelectedSeasonal] = useState(null);
+  const { width } = useWindowDimensions();
+
+  const recipeTileColumns = width >= 900 ? 3 : width >= 600 ? 2 : 1;
+  const recipeTileWidth =
+    recipeTileColumns === 1 ? "100%" : recipeTileColumns === 2 ? "48%" : "31%";
 
   const month = new Date().getMonth() + 1;
   const selectedPantry = pantryItems.filter((item) => item.isSelected);
@@ -299,6 +313,7 @@ export default function HomeScreen({ navigation }) {
                 key={recipe.id}
                 recipe={recipe}
                 pantryItems={pantryItems}
+                tileWidth={recipeTileWidth}
                 onPress={() =>
                   navigation.navigate("RecipeDetail", { recipeId: recipe.id })
                 }
@@ -447,7 +462,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   recipeTile: {
-    width: "48%",
     overflow: "hidden",
     borderRadius: 14,
     borderWidth: 1,
@@ -456,7 +470,7 @@ const styles = StyleSheet.create({
   },
   recipeImage: {
     width: "100%",
-    height: 104,
+    aspectRatio: 1.25,
     backgroundColor: colors.surfaceAlt,
   },
   recipeBody: {

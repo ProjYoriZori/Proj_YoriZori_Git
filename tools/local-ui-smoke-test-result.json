@@ -1,0 +1,598 @@
+{
+  "appUrl": "http://localhost:8082",
+  "startedAt": "2026-05-17T09:13:17.755Z",
+  "checks": [
+    {
+      "name": "home loads",
+      "status": "pass",
+      "detail": "오늘 뭐 먹을까요? 요리조리 󱯬 백엔드 연결 냉장고 재료를 고르면 만들기 쉬운 레시피부터 보여드릴게요. 󰊏 0개 보유 재료 󰄴 0개 선택 재료 󰩰 0끼 식사 기록 󰌪 5월 제철 식재료 󰹦 달래 󰹦 냉이 󰹦 두릅 󰹦 주꾸미 󰹦 딸기 󰊏 내 냉장고 보기 냉장고에서 요리할 재료를 선택해 주세요. 󰊏 재료 "
+    },
+    {
+      "name": "recipes screen route and search inputs",
+      "status": "pass",
+      "detail": "레시피 DB에 저장된 레시피를 메뉴명이나 재료로 검색합니다. 󰍉 󰄏 󰉹 전체 󰊏 내 재료 우선 총 0개의 레시피 󰦀 검색 결과가 없어요 DB에 저장된 레시피가 없거나 검색어와 일치하는 레시피가 없습니다.   홈 󰩰 󰒣 레시피   장보기 󰞯 󰞰 영양   마이"
+    },
+    {
+      "name": "shopping add toggle delete",
+      "status": "pass",
+      "detail": "Created, toggled when available, and deleted CodexTestShopping."
+    },
+    {
+      "name": "fridge add select delete",
+      "status": "pass",
+      "detail": "Created, selected when available, and deleted CodexTestPantry."
+    },
+    {
+      "name": "nutrition add custom food",
+      "status": "pass",
+      "detail": "Created CodexTestFood custom food."
+    },
+    {
+      "name": "mypage form renders and accepts input",
+      "status": "pass",
+      "detail": "Profile fields accept text input; save not submitted to avoid overwriting profile."
+    },
+    {
+      "name": "recipe detail route if recipe exists",
+      "status": "pass",
+      "detail": "󰁍 초코타르트 Cook 후식 155kcal 󱕎 영양 정보 󰈸 155 kcal 칼로리 󰁳 19 g 탄수 󱑪 5 g 단백질 󰏇 7 g 지방 󱄏 44 mg 나트륨 󰲄 재료 12가지 부족한 재료 󱔨 주재료 > 아몬드가루 󱔨 무가당 코코아가루① 󱔨 귀리 󱔨 코코넛 오일 󱔨 알룰로스① 󱔨 소금 󱔨 초코필링"
+    }
+  ],
+  "errors": [],
+  "warnings": [],
+  "console": [
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "level": "error",
+      "message": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    }
+  ],
+  "network": [
+    {
+      "status": "failed",
+      "url": "27708.12",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.13",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.14",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.15",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.40",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.50",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.51",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.52",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.53",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.54",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.55",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.56",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.57",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.58",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.59",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.60",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.61",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.41",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.42",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.43",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.44",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.45",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.46",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.47",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.48",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.49",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.62",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.63",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.64",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.65",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.66",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.67",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.68",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.69",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.70",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.71",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.72",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.73",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.74",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.75",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.76",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.77",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.78",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.79",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.80",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.81",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.82",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.83",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.84",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.85",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.86",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.87",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.88",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.89",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "status": "failed",
+      "url": "27708.199",
+      "type": "Image",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED"
+    }
+  ],
+  "finishedAt": "2026-05-17T09:14:52.074Z"
+}

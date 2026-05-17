@@ -93,9 +93,11 @@ BackEnd/
 
 로컬 프로필 설정입니다.
 
-- `.env`, `BackEnd/.env` import
-- MySQL datasource
+- `.env` (BackEnd/.env) 값을 로드하도록 설정되어 있습니다.
+- MySQL datasource 설정(로컬 또는 Cloud SQL)
 - 식약처 OpenAPI 설정
+
+참고: 애플리케이션 시작 시 `SchemaMigrationRunner`가 누락된 테이블을 생성/보정합니다. `recipe_steps` 테이블의 단계 텍스트는 `instruction` 컬럼을 사용합니다.
 
 ### `db/schema.sql`
 

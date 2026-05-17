@@ -180,7 +180,7 @@ public class RecipeQueryRepository {
         private List<RecipeStepResponse> findStepDetails(long recipeId) {
         String sql = """
             SELECT step_no,
-                   description,
+                   instruction,
                    image_url
               FROM recipe_steps
              WHERE recipe_id = ?
@@ -188,7 +188,7 @@ public class RecipeQueryRepository {
             """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RecipeStepResponse(
             rs.getInt("step_no"),
-            nullToEmpty(rs.getString("description")),
+            nullToEmpty(rs.getString("instruction")),
             nullToEmpty(rs.getString("image_url"))
         ), recipeId);
         }

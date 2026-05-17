@@ -1,6 +1,11 @@
 # YoriZori FrontEnd
 
-This is the active frontend app for YoriZori.
+Active frontend 앱의 로컬 실행 및 백엔드 연결 방법을 정리합니다.
+
+## Prerequisites
+
+- Node.js 18+ 및 npm
+- (선택) Expo CLI: `npm install -g expo-cli` 또는 `npx expo`
 
 ## Run
 
@@ -10,54 +15,49 @@ npm install
 npm run start
 ```
 
+웹 전용 실행:
+
+```powershell
+npm run web
+```
+
 ## Backend Connection
 
-The API client is `src/api/client.js`.
+API 클라이언트는 `src/api/client.js` 입니다. 기본 API 베이스 URL은 다음 환경변수로 제어합니다:
 
-Default behavior:
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
+```
 
-- `EXPO_PUBLIC_API_BASE_URL=http://localhost:8080` resolves to `http://localhost:8080/api/v1`.
-- If the value already ends with `/api/v1`, it is used as-is.
-- If the variable is omitted, the app defaults to `http://localhost:8080/api/v1`.
+- 값이 `/api/v1`로 끝나면 그대로 사용됩니다.
+- 값이 없으면 기본값 `http://localhost:8080/api/v1`로 동작합니다.
 
-Android emulator:
+Android 에뮬레이터:
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080
 ```
 
-## Recipe Data
+## Recipe & Nutrition Data
 
-Recipe data is API-only.
+- 레시피 및 영양 관련 데이터는 모두 백엔드 API에서 로드됩니다.
+- 초기 목록 호출: `GET /api/v1/recipes?limit=50`
+- 상세 호출: `GET /api/v1/recipes/{id}`
+- 영양 일별 요약: `GET /api/v1/nutrition/daily-summary?date=<yyyy-MM-dd>`
 
-- Initial load calls `GET /api/v1/recipes?limit=50`.
-- Recipe search calls `GET /api/v1/recipes` with `query` and `ingredients`.
-- The app no longer falls back to bundled mock recipes.
-- If the backend or DB is unavailable, the recipe list is empty and the screen shows the API error.
-
-The backend must be running and connected to MySQL/Cloud SQL. If the recipe table is empty, run:
+백엔드가 실행 중이어야 앱이 정상 동작합니다. 레시피 테이블이 비어있다면 관리자 인제스트 API를 사용해 데이터를 채우세요:
 
 ```powershell
 curl -X POST "http://localhost:8080/api/v1/admin/ingest/recipes?startIdx=1&endIdx=100"
 ```
-
-## Nutrition Data
-
-Nutrition logs and custom foods are API-only.
-
-- Daily summary calls `GET /api/v1/nutrition/daily-summary?date=<yyyy-MM-dd>`.
-- Custom foods call `GET /api/v1/custom-foods`.
-- The app no longer falls back to bundled mock nutrition logs or custom foods.
 
 ## Verification
 
 ```powershell
 cd FrontEnd
 npm run doctor
+
+Get-ChildItem -Path .\src -Recurse -Include *.js | ForEach-Object { node --check $_.FullName }
 ```
 
-```powershell
-Get-ChildItem -Path .\src -Recurse -Include *.js | ForEach-Object { node --check $_.FullName }
-node --check .\App.js
-node --check .\index.js
-```
+문제가 있다면 `EXPO_PUBLIC_API_BASE_URL` 설정과 백엔드의 상태(포트, CORS 등)를 먼저 확인하세요.

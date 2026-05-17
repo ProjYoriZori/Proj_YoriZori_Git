@@ -1,2 +1,6 @@
 copilot-context.md
 tools/cloud-sql-proxy.exe
+.env
+*.env
+bin/
+**/bin/

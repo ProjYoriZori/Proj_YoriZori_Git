@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -147,12 +148,20 @@ export default function RecipeDetailScreen({ navigation, route }) {
   const [timerVisible, setTimerVisible] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+  const { width } = useWindowDimensions();
+  const heroHeight = Math.max(240, Math.min(420, Math.round(width * 0.68)));
 
   useEffect(() => {
     const initialRecipe = recipes.find((item) => item.id === recipeId) || null;
-    if (initialRecipe) {
-      setRecipe(initialRecipe);
-    }
+    if (!initialRecipe) return;
+
+    setRecipe((current) => {
+      if (!current) return initialRecipe;
+      if (current.id !== recipeId) return initialRecipe;
+      if (!current.steps?.length && initialRecipe.steps?.length)
+        return initialRecipe;
+      return current;
+    });
   }, [recipeId, recipes]);
 
   useEffect(() => {
@@ -178,8 +187,8 @@ export default function RecipeDetailScreen({ navigation, route }) {
     };
   }, [recipeId]);
 
-  const { width, height } = Dimensions.get("window");
-  const startPosition = { x: width - 78, y: height - 220 };
+  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const startPosition = { x: screenWidth - 78, y: screenHeight - 220 };
   const pan = useRef(new Animated.ValueXY(startPosition)).current;
   const origin = useRef(startPosition);
   const moved = useRef(false);
@@ -194,15 +203,27 @@ export default function RecipeDetailScreen({ navigation, route }) {
         if (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5)
           moved.current = true;
         const next = {
-          x: Math.min(Math.max(12, origin.current.x + gesture.dx), width - 68),
-          y: Math.min(Math.max(92, origin.current.y + gesture.dy), height - 96),
+          x: Math.min(
+            Math.max(12, origin.current.x + gesture.dx),
+            screenWidth - 68,
+          ),
+          y: Math.min(
+            Math.max(92, origin.current.y + gesture.dy),
+            screenHeight - 96,
+          ),
         };
         pan.setValue(next);
       },
       onPanResponderRelease: (_, gesture) => {
         origin.current = {
-          x: Math.min(Math.max(12, origin.current.x + gesture.dx), width - 68),
-          y: Math.min(Math.max(92, origin.current.y + gesture.dy), height - 96),
+          x: Math.min(
+            Math.max(12, origin.current.x + gesture.dx),
+            screenWidth - 68,
+          ),
+          y: Math.min(
+            Math.max(92, origin.current.y + gesture.dy),
+            screenHeight - 96,
+          ),
         };
         pan.setValue(origin.current);
         if (!moved.current) setTimerVisible(true);
@@ -256,7 +277,11 @@ export default function RecipeDetailScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.imageWrap}>
-          <Image source={{ uri: recipe.imageUrl }} style={styles.heroImage} />
+          <Image
+            source={{ uri: recipe.imageUrl }}
+            style={[styles.heroImage, { height: heroHeight }]}
+            resizeMode="contain"
+          />
           <View style={styles.imageOverlay} />
           <SafeAreaView style={styles.imageSafe} edges={["top"]}>
             <IconButton
@@ -454,13 +479,12 @@ export default function RecipeDetailScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   imageWrap: {
-    height: 310,
     marginHorizontal: -18,
     marginBottom: 16,
   },
   heroImage: {
     width: "100%",
-    height: "100%",
+    minHeight: 240,
     backgroundColor: colors.surfaceAlt,
   },
   imageOverlay: {
@@ -510,18 +534,18 @@ const styles = StyleSheet.create({
   nutritionStat: {
     flex: 1,
     minHeight: 82,
-    stepImage: {
-      width: "100%",
-      height: 180,
-      borderRadius: 16,
-      marginBottom: 10,
-      backgroundColor: colors.surfaceAlt,
-    },
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.background,
     borderRadius: 12,
     paddingHorizontal: 4,
+  },
+  stepImage: {
+    width: "100%",
+    aspectRatio: 1.6,
+    borderRadius: 16,
+    marginBottom: 10,
+    backgroundColor: colors.surfaceAlt,
   },
   nutritionValue: {
     marginTop: 4,
