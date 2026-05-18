@@ -22,7 +22,7 @@ YoriZori 백엔드는 레시피, 냉장고 재료, 장보기, 영양 기록, 추
 
 ```env
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=3307
 DB_NAME=yorizori_DB
 DB_USERNAME=testAccount
 DB_PASSWORD=your-db-password

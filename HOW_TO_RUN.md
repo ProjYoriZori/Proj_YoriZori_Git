@@ -20,12 +20,12 @@ BackEnd 디렉터리에 `.env` 파일을 생성하고 로컬 값을 넣습니다
 
 ```env
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=3307
 DB_NAME=yorizori_DB
 DB_USERNAME=testAccount
 DB_PASSWORD=your-db-password
 # Optional: 전체 JDBC URL이 있다면 우선 사용됩니다.
-DB_URL=jdbc:mysql://127.0.0.1:3306/yorizori_DB?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+DB_URL=jdbc:mysql://127.0.0.1:3307/yorizori_DB?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
 FOOD_API_KEY=your-food-api-key
 JWT_SECRET=change-this-local-secret
 CLOUD_SQL_CONNECTION_NAME=project-id:region:instance-name
@@ -109,7 +109,7 @@ Get-ChildItem -Path .\src -Recurse -Include *.js | ForEach-Object { node --check
 
 ## Troubleshooting
 
-- 포트 충돌: Cloud SQL Auth Proxy 또는 로컬 MySQL이 3306을 점유하면 프록시를 다른 포트(예: 3307)로 실행하고 `DB_PORT`를 조정하세요.
+- 포트 충돌: Cloud SQL Auth Proxy 또는 로컬 MySQL이 3307을 점유하면 프록시를 다른 포트(예: 3308)로 실행하고 `DB_PORT`를 조정하세요.
 - Expo 포트: Expo는 기본적으로 19000/19001(모바일) 또는 8081(웹)을 사용합니다. 브라우저에서 열리는 주소를 확인하거나 `npm run web`을 사용해 웹 전용 빌드를 시도하세요.
 - API 500 에러: 백엔드 로그의 SQL 쿼리/스택트레이스를 확인하세요. 최근 수정으로 `recipe_steps`의 단계 텍스트 컬럼은 `instruction`입니다.
 
