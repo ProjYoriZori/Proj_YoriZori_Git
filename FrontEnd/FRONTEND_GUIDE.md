@@ -12,6 +12,8 @@ npm run start
 
 `npm run start`는 Expo 개발 도구를 시작합니다. 웹 전용으로 실행하려면 `npm run web`을 사용할 수 있습니다.
 
+Expo 개발 서버는 백엔드 API를 프록시하지 않습니다. 앱은 `EXPO_PUBLIC_API_BASE_URL` 값으로 백엔드에 직접 요청하며, 값이 없으면 기본적으로 `http://localhost:8080`을 사용합니다. 웹에서는 현재 호스트 기준 주소를 참고하고, Android 에뮬레이터에서는 `http://10.0.2.2:8080`을 사용합니다.
+
 ## Prerequisites
 
 - Node.js 18+ 및 npm

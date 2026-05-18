@@ -78,6 +78,8 @@ npm run start
 
 `npm run start`는 Expo 개발 서버를 실행합니다(웹, iOS, Android 디바이스/에뮬레이터 선택 가능).
 
+Expo 개발 서버는 백엔드 API를 프록시하지 않습니다. 앱은 `EXPO_PUBLIC_API_BASE_URL` 값으로 백엔드에 직접 요청하며, 값이 없으면 기본적으로 `http://localhost:8080`을 사용합니다. 웹에서는 현재 호스트 기준 주소를 참고하고, Android 에뮬레이터에서는 `http://10.0.2.2:8080`을 사용합니다.
+
 2. 환경 변수
 
 웹/모바일에서 API 서버 주소를 명시하려면 `.env` 또는 시스템 환경 변수로 설정하세요:
