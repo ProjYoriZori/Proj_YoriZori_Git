@@ -254,7 +254,7 @@ export function AppDataProvider({ children }) {
       toggleShoppingItem: async (id) => {
         const target = shoppingItems.find((item) => item.id === id);
         if (!target) return;
-        const nextChecked = !target.isChecked;
+          await api.deleteShoppingItem(id);
         setShoppingItems((items) =>
           items.map((item) =>
             item.id === id ? { ...item, isChecked: nextChecked } : item,
@@ -265,6 +265,11 @@ export function AppDataProvider({ children }) {
             (item) => normalizeName(item.name) === normalizeName(target.name),
           );
           if (!exists) {
+        try {
+          await Promise.all(checkedIds.map((id) => api.deleteShoppingItem(id)));
+        } catch {
+          setBackendOnline(false);
+        }
             actions.addPantryItem({
               name: target.name,
               quantity: target.quantity,
@@ -339,6 +344,11 @@ export function AppDataProvider({ children }) {
       },
       deleteNutritionLog: async (id) => {
         setNutritionLogs((logs) => logs.filter((log) => log.id !== id));
+        try {
+          await api.deleteNutritionLog(id);
+        } catch {
+          setBackendOnline(false);
+        }
       },
       saveProfile: async (nextProfile) => {
         const optimistic = {
@@ -376,6 +386,11 @@ export function AppDataProvider({ children }) {
       },
       deleteCustomFood: async (id) => {
         setCustomFoods((foods) => foods.filter((food) => food.id !== id));
+        try {
+          await api.deleteCustomFood(id);
+        } catch {
+          setBackendOnline(false);
+        }
       },
     }),
     [customFoods, nutritionLogs, pantryItems, profile, shoppingItems],

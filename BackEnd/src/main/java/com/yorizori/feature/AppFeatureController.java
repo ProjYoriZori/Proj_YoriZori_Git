@@ -155,12 +155,30 @@ public class AppFeatureController {
                 patchRequest));
     }
 
+        @DeleteMapping("/shopping-items/{shoppingItemId}")
+        public ResponseEntity<Map<String, Boolean>> deleteShoppingItem(
+            HttpServletRequest request,
+            @PathVariable long shoppingItemId
+        ) {
+        service.deleteShoppingItem(authSupport.currentUserId(request), shoppingItemId);
+        return ResponseEntity.ok(Map.of("deleted", true));
+        }
+
     @PostMapping("/nutrition-logs")
     public ResponseEntity<NutritionLogResponse> addNutritionLog(
             HttpServletRequest request,
             @RequestBody NutritionLogRequest nutritionRequest
     ) {
         return ResponseEntity.ok(service.addNutritionLog(authSupport.currentUserId(request), nutritionRequest));
+    }
+
+    @DeleteMapping("/nutrition-logs/{nutritionLogId}")
+    public ResponseEntity<Map<String, Boolean>> deleteNutritionLog(
+            HttpServletRequest request,
+            @PathVariable long nutritionLogId
+    ) {
+        service.deleteNutritionLog(authSupport.currentUserId(request), nutritionLogId);
+        return ResponseEntity.ok(Map.of("deleted", true));
     }
 
     @GetMapping("/nutrition/daily-summary")
@@ -217,5 +235,14 @@ public class AppFeatureController {
             @RequestBody CustomFoodRequest customFoodRequest
     ) {
         return ResponseEntity.ok(service.addCustomFood(authSupport.currentUserId(request), customFoodRequest));
+    }
+
+    @DeleteMapping("/custom-foods/{customFoodId}")
+    public ResponseEntity<Map<String, Boolean>> deleteCustomFood(
+            HttpServletRequest request,
+            @PathVariable long customFoodId
+    ) {
+        service.deleteCustomFood(authSupport.currentUserId(request), customFoodId);
+        return ResponseEntity.ok(Map.of("deleted", true));
     }
 }

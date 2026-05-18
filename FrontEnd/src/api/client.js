@@ -1,8 +1,24 @@
 import { dateKey } from "../utils/nutrition";
+import { NativeModules } from "react-native";
+
+function inferNativeHost() {
+  const scriptUrl =
+    NativeModules?.SourceCode?.scriptURL ||
+    NativeModules?.PlatformConstants?.scriptURL ||
+    "";
+  const host = String(scriptUrl)
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "")
+    .split(/[/:?]/)[0];
+  return host || null;
+}
 
 function defaultBaseUrl() {
   if (typeof window !== "undefined" && window.location?.hostname) {
     return `${window.location.protocol}//${window.location.hostname}:8080`;
+  }
+  const nativeHost = inferNativeHost();
+  if (nativeHost) {
+    return `http://${nativeHost}:8080`;
   }
   return "http://localhost:8080";
 }
@@ -35,6 +51,7 @@ const ENDPOINTS = {
 };
 
 let authToken = null;
+const FALLBACK_USER_ID = process.env.EXPO_PUBLIC_USER_ID || process.env.EXPO_PUBLIC_GUEST_USER_ID || "1";
 
 export function setAuthToken(token) {
   authToken = token || null;
@@ -61,16 +78,12 @@ function requiresAuth(path) {
 }
 
 async function request(path, options = {}) {
-  if (!authToken && requiresAuth(path)) {
-    throw new Error("Authentication required.");
-  }
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method || "GET",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : requiresAuth(path) ? { "X-User-Id": FALLBACK_USER_ID } : {}),
       ...(options.headers || {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -144,6 +157,18 @@ function normalizeSeasonalIngredient(raw) {
     name: raw.name || "",
     category: raw.category || "",
     recipes: Array.isArray(raw.recipes) ? raw.recipes.map(normalizeRecipe) : [],
+  };
+}
+
+function splitQuantityText(quantityText = "") {
+  const text = String(quantityText || "").trim();
+  if (!text) {
+    return { quantity: "", unit: "" };
+  }
+  const [quantity, ...rest] = text.split(/\s+/);
+  return {
+    quantity,
+    unit: rest.join(" "),
   };
 }
 
@@ -231,6 +256,8 @@ export function normalizeRecipe(raw) {
 }
 
 export function normalizePantryItem(raw) {
+  const quantityText = raw.quantity_text || raw.quantityText || "";
+  const quantityParts = splitQuantityText(quantityText);
   return {
     id: String(raw.pantry_item_id || raw.pantryItemId || raw.id),
     ingredientId: raw.ingredient_id || raw.ingredientId,
@@ -243,8 +270,9 @@ export function normalizePantryItem(raw) {
       "",
     category:
       raw.category || raw.storage_location || raw.storageLocation || "기타",
-    quantity: raw.quantity ? String(raw.quantity) : "",
-    unit: raw.unit || "",
+    quantity: raw.quantity ? String(raw.quantity) : quantityParts.quantity,
+    unit: raw.unit || quantityParts.unit,
+    quantityText,
     expiryDate: raw.expiry_date || raw.expiryDate || raw.expiresAt || "",
     memo: raw.memo || "",
     isSelected: Boolean(raw.is_selected || raw.isSelected),
@@ -547,6 +575,8 @@ export const api = {
       method: "PATCH",
       body: toShoppingPatchRequest(body),
     }).then(normalizeShoppingItem),
+  deleteShoppingItem: (id) =>
+    request(`${ENDPOINTS.shoppingItems}/${id}`, { method: "DELETE" }),
   generateShoppingItems: (body) =>
     request(ENDPOINTS.shoppingGenerate, {
       method: "POST",
@@ -557,6 +587,8 @@ export const api = {
       method: "POST",
       body: toNutritionLogRequest(body),
     }).then(normalizeNutritionLog),
+  deleteNutritionLog: (id) =>
+    request(`${ENDPOINTS.nutritionLogs}/${id}`, { method: "DELETE" }),
   saveProfile: (profile) =>
     request(ENDPOINTS.me, {
       method: "PATCH",
@@ -585,4 +617,6 @@ export const api = {
       method: "POST",
       body: toCustomFoodRequest(body),
     }).then(normalizeCustomFood),
+  deleteCustomFood: (id) =>
+    request(`${ENDPOINTS.customFoods}/${id}`, { method: "DELETE" }),
 };

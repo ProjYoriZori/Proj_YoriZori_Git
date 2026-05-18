@@ -5,3 +5,5 @@ out/
 .env
 *.log
 tools/
+cloud_sql_proxy*.exe
+yorizori-*.json

@@ -128,6 +128,11 @@ public class AppFeatureService {
     }
 
     @Transactional
+    public void deleteShoppingItem(long userId, long shoppingItemId) {
+        repository.deleteShoppingItem(userId, shoppingItemId);
+    }
+
+    @Transactional
     public NutritionLogResponse addNutritionLog(long userId, FeatureDtos.NutritionLogRequest request) {
         if (request.recipeId() != null) {
             RecipeResponse recipe = recipeQueryService.findRecipe(request.recipeId());
@@ -149,6 +154,11 @@ public class AppFeatureService {
         NutritionResponse consumed = sum(logs);
         NutritionResponse recommended = recommended(findMe(userId));
         return new DailyNutritionSummaryResponse(targetDate, consumed, recommended, ratio(consumed, recommended), logs);
+    }
+
+    @Transactional
+    public void deleteNutritionLog(long userId, long nutritionLogId) {
+        repository.deleteNutritionLog(userId, nutritionLogId);
     }
 
     @Transactional
@@ -208,6 +218,11 @@ public class AppFeatureService {
     @Transactional
     public CustomFoodResponse addCustomFood(long userId, FeatureDtos.CustomFoodRequest request) {
         return repository.addCustomFood(userId, request);
+    }
+
+    @Transactional
+    public void deleteCustomFood(long userId, long customFoodId) {
+        repository.deleteCustomFood(userId, customFoodId);
     }
 
     private NutritionResponse sum(List<NutritionLogResponse> logs) {
