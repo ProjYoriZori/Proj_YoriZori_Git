@@ -27,6 +27,9 @@ public class AppFeatureRepository {
     }
 
     public UserProfileResponse updateProfile(long userId, FeatureDtos.ProfileUpdateRequest request) {
+        if (request.age() != null && (request.age() < 1 || request.age() > 120)) {
+            throw new IllegalArgumentException("올바른 나이를 입력해 주세요(1~120).");
+        }
         jdbcTemplate.update("""
                 UPDATE users
                    SET nickname = COALESCE(?, nickname),
@@ -127,15 +130,15 @@ public class AppFeatureRepository {
 
     public List<AvoidIngredientResponse> findAvoidIngredients(long userId) {
         return jdbcTemplate.query("""
-                SELECT avoid_ingredient_id, name, reason
+                SELECT avoid_ingredient_id, ingredient_name, reason_type
                   FROM avoid_ingredients
                  WHERE user_id = ?
-                 ORDER BY name
+                 ORDER BY ingredient_name
                 """,
                 (rs, rowNum) -> new AvoidIngredientResponse(
                         rs.getLong("avoid_ingredient_id"),
-                        rs.getString("name"),
-                        rs.getString("reason")
+                        rs.getString("ingredient_name"),
+                        rs.getString("reason_type")
                 ),
                 userId
         );
@@ -144,19 +147,19 @@ public class AppFeatureRepository {
     public AvoidIngredientResponse addAvoidIngredient(long userId, FeatureDtos.AvoidIngredientRequest request) {
         String name = required(request.name(), "Avoid ingredient name");
         jdbcTemplate.update("""
-                INSERT INTO avoid_ingredients (user_id, name, normalized_name, reason)
+                INSERT INTO avoid_ingredients (user_id, ingredient_name, normalized_name, reason_type)
                 VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE reason = VALUES(reason), name = VALUES(name)
+                ON DUPLICATE KEY UPDATE reason_type = VALUES(reason_type), ingredient_name = VALUES(ingredient_name)
                 """, userId, name, normalize(name), blankToNull(request.reason()));
         return jdbcTemplate.queryForObject("""
-                SELECT avoid_ingredient_id, name, reason
+                SELECT avoid_ingredient_id, ingredient_name, reason_type
                   FROM avoid_ingredients
                  WHERE user_id = ? AND normalized_name = ?
                 """,
                 (rs, rowNum) -> new AvoidIngredientResponse(
                         rs.getLong("avoid_ingredient_id"),
-                        rs.getString("name"),
-                        rs.getString("reason")
+                        rs.getString("ingredient_name"),
+                        rs.getString("reason_type")
                 ),
                 userId,
                 normalize(name)
@@ -169,8 +172,8 @@ public class AppFeatureRepository {
     }
 
     public List<String> findAvoidNames(long userId) {
-        return jdbcTemplate.query("SELECT name FROM avoid_ingredients WHERE user_id = ?",
-                (rs, rowNum) -> rs.getString("name"), userId);
+        return jdbcTemplate.query("SELECT ingredient_name FROM avoid_ingredients WHERE user_id = ?",
+                (rs, rowNum) -> rs.getString("ingredient_name"), userId);
     }
 
     public List<ShoppingItemResponse> findShoppingItems(long userId) {
@@ -213,6 +216,11 @@ public class AppFeatureRepository {
                 VALUES (?, ?, ?, ?, FALSE)
                 ON DUPLICATE KEY UPDATE checked = FALSE, updated_at = CURRENT_TIMESTAMP
                 """, userId, recipeId, required(name, "Shopping item name"), normalizedName);
+    }
+
+    public void deleteShoppingItem(long userId, long shoppingItemId) {
+        jdbcTemplate.update("DELETE FROM shopping_items WHERE user_id = ? AND shopping_item_id = ?",
+                userId, shoppingItemId);
     }
 
     public ShoppingItemResponse patchShoppingItem(long userId, long shoppingItemId, Boolean checked) {

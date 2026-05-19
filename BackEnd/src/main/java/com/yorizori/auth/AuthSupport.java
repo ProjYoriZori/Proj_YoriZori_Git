@@ -15,12 +15,12 @@ public class AuthSupport {
     public long currentUserId(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
         if (authorization != null && authorization.startsWith("Bearer ")) {
-            return tokenProvider.parseUserId(authorization.substring("Bearer ".length()).trim());
+            try {
+                return tokenProvider.parseUserId(authorization.substring("Bearer ".length()).trim());
+            } catch (IllegalArgumentException e) {
+                throw new UnauthorizedException(e.getMessage());
+            }
         }
-        String userIdHeader = request.getHeader("X-User-Id");
-        if (userIdHeader != null && !userIdHeader.trim().isEmpty()) {
-            return Long.parseLong(userIdHeader.trim());
-        }
-        throw new IllegalArgumentException("Authorization token is required.");
+        throw new UnauthorizedException("Authorization token is required.");
     }
 }

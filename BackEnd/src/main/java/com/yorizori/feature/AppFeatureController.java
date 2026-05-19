@@ -145,6 +145,15 @@ public class AppFeatureController {
         return ResponseEntity.ok(service.addShoppingItem(authSupport.currentUserId(request), shoppingRequest));
     }
 
+    @DeleteMapping("/shopping-items/{shoppingItemId}")
+    public ResponseEntity<Map<String, Boolean>> deleteShoppingItem(
+            HttpServletRequest request,
+            @PathVariable long shoppingItemId
+    ) {
+        service.deleteShoppingItem(authSupport.currentUserId(request), shoppingItemId);
+        return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
     @PatchMapping("/shopping-items/{shoppingItemId}")
     public ResponseEntity<ShoppingItemResponse> patchShoppingItem(
             HttpServletRequest request,

@@ -116,6 +116,11 @@ public class AppFeatureService {
     }
 
     @Transactional
+    public void deleteShoppingItem(long userId, long itemId) {
+        repository.deleteShoppingItem(userId, itemId);
+    }
+
+    @Transactional
     public List<ShoppingItemResponse> addShoppingItem(long userId, FeatureDtos.ShoppingItemRequest request) {
         repository.addShoppingItem(userId, null, request.name());
         return repository.findShoppingItems(userId);

@@ -29,8 +29,12 @@ public class RecipeController {
             @RequestParam(required = false) Integer limit,
             @RequestParam(defaultValue = "latest") String sort
     ) {
+        String trimmedQuery = query != null ? query.trim() : null;
+        if (query != null && trimmedQuery.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
         int resolvedSize = size != null ? size : (limit != null ? limit : 50);
-        return ResponseEntity.ok(recipeQueryService.findRecipes(query, ingredients, page, resolvedSize, sort));
+        return ResponseEntity.ok(recipeQueryService.findRecipes(trimmedQuery, ingredients, page, resolvedSize, sort));
     }
 
     @GetMapping("/{recipeId}")
