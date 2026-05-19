@@ -141,7 +141,7 @@ export function useToast() {
 
 const styles = StyleSheet.create({
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   textButton: {
     paddingHorizontal: 12,

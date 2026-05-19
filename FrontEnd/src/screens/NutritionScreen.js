@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   summaryBox: {
     width: "48.5%",
-    minHeight: 104,
+    minHeight: 100,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,

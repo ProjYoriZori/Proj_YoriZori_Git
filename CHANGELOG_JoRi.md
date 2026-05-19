@@ -163,6 +163,53 @@
 
 ---
 
+> 작업일: 2026-05-20  
+> 브랜치: `JoRi`
+
+---
+
+## 12. 탭바 완전 재작성 (App.js)
+
+### CustomTabBar 컴포넌트 신규 작성
+- `@react-navigation/bottom-tabs`의 `BottomTabBar` 제거 → 커스텀 `CustomTabBar`로 교체
+- `TAB_ROUTES` 배열로 탭 라우트 선언적 통합 (기존 `screenOptions` 내 분기문 제거)
+- `Animated.spring`으로 탭 전환 시 슬라이딩 초록 pill 애니메이션 구현
+- `useWindowDimensions`로 탭 너비를 화면 크기 기준 동적 계산
+- 탭바 스타일: 기존 플로팅 둥근 카드 → **하단 고정형 전체 너비** (테두리 선 디자인)
+- Safe Area: `insets.bottom`을 탭바 height에 반영해 홈 인디케이터 겹침 방지
+- 임포트 변경: `Animated`, `Pressable`, `useWindowDimensions` 추가 / `BottomTabBar` 제거
+
+---
+
+## 13. 냉장고 화면 개선 (FridgeScreen.js)
+
+### 카테고리 이모지 추가
+- `categoryEmoji` 매핑 객체 추가 (채소🥬 과일🍎 육류🥩 해산물🦐 유제품🥛 계란🥚 두부/콩류🫘 양념/소스🧂 냉동식품🧊 기타🍽️)
+- 재료 목록 행에 카테고리 이모지를 이름 왼쪽에 표시
+
+### 재료 추가 폼 단순화
+- `quantity`(수량), `unit`(단위) 입력 필드 제거 → **재료명 + 카테고리만** 입력
+- 기존 "수량 미입력" 보조 텍스트 제거
+
+---
+
+## 14. 스타일 미세 조정
+
+### theme.js
+- `content`, `detailContent` 전역 스타일에 `gap: 16` 추가 (섹션 간 세로 간격 통일)
+- `card` padding: `16` → `18`
+
+### ui.js
+- `sectionHeader` `marginBottom`: `12` → `16`
+
+### NutritionScreen.js
+- `summaryBox` `minHeight`: `104` → `100` (박스 높이 미세 조정)
+
+### ShoppingScreen.js
+- 헤더 `paddingBottom`: `16` → `20`
+
+---
+
 ## 설치된 패키지
 
 | 패키지 | 용도 |
@@ -191,5 +238,16 @@
 | `FrontEnd/src/screens/NutritionScreen.js` | 수정 |
 | `FrontEnd/src/screens/RecipeDetailScreen.js` | 수정 |
 | `FrontEnd/src/screens/RecipesScreen.js` | 수정 |
+| `FrontEnd/src/screens/ShoppingScreen.js` | 수정 |
+| `FrontEnd/src/theme.js` | 수정 |
+
+### 2026-05-20 추가
+
+| 파일 | 구분 |
+|------|------|
+| `FrontEnd/App.js` | 수정 (탭바 재작성) |
+| `FrontEnd/src/components/ui.js` | 수정 |
+| `FrontEnd/src/screens/FridgeScreen.js` | 수정 |
+| `FrontEnd/src/screens/NutritionScreen.js` | 수정 |
 | `FrontEnd/src/screens/ShoppingScreen.js` | 수정 |
 | `FrontEnd/src/theme.js` | 수정 |

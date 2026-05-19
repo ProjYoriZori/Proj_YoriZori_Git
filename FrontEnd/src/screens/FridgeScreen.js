@@ -9,13 +9,26 @@ import { colors, globalStyles } from '../theme';
 
 const categories = ['채소', '과일', '육류', '해산물', '유제품', '계란', '두부/콩류', '양념/소스', '냉동식품', '기타'];
 
+const categoryEmoji = {
+  '채소': '🥬',
+  '과일': '🍎',
+  '육류': '🥩',
+  '해산물': '🦐',
+  '유제품': '🥛',
+  '계란': '🥚',
+  '두부/콩류': '🫘',
+  '양념/소스': '🧂',
+  '냉동식품': '🧊',
+  '기타': '🍽️',
+};
+
 function AddPantryModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
-  const [form, setForm] = useState({ name: '', quantity: '', unit: '', category: '채소' });
+  const [form, setForm] = useState({ name: '', category: '채소' });
 
   const submit = async () => {
     if (!form.name.trim()) return;
     await onSubmit(form);
-    setForm({ name: '', quantity: '', unit: '', category: '채소' });
+    setForm({ name: '', category: '채소' });
     onClose();
   };
 
@@ -28,10 +41,6 @@ function AddPantryModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
           <Text style={styles.modalTitle}>재료 추가</Text>
           <View style={styles.formGap}>
             <Field value={form.name} onChangeText={(name) => setForm((current) => ({ ...current, name }))} placeholder="재료명" />
-            <View style={styles.formRow}>
-              <Field value={form.quantity} onChangeText={(quantity) => setForm((current) => ({ ...current, quantity }))} placeholder="수량" style={{ flex: 1 }} />
-              <Field value={form.unit} onChangeText={(unit) => setForm((current) => ({ ...current, unit }))} placeholder="단위" style={{ width: 92 }} />
-            </View>
             <View style={styles.categoryWrap}>
               {categories.map((category) => (
                 <Chip
@@ -94,9 +103,9 @@ export default function FridgeScreen({ navigation }) {
                 <Pressable onPress={() => togglePantrySelection(item.id)} style={[styles.checkbox, item.isSelected && styles.checkboxActive]}>
                   <MaterialCommunityIcons name={item.isSelected ? 'check-bold' : 'plus'} size={17} color={item.isSelected ? colors.surface : colors.muted} />
                 </Pressable>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={styles.categoryEmoji}>{categoryEmoji[item.category] || '🍽️'}</Text>
                   <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemMeta}>{[item.quantity, item.unit].filter(Boolean).join(' ') || '수량 미입력'}</Text>
                 </View>
                 <IconButton icon="trash-can-outline" size={36} color={colors.danger} backgroundColor="#fff0ef" onPress={() => deletePantryItem(item.id)} />
               </View>
@@ -172,6 +181,9 @@ const styles = StyleSheet.create({
   checkboxActive: {
     backgroundColor: colors.primaryDark,
     borderColor: colors.primaryDark,
+  },
+  categoryEmoji: {
+    fontSize: 18,
   },
   itemName: {
     color: colors.text,

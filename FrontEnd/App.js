@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, Text, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
@@ -57,68 +57,109 @@ const linking = {
   },
 };
 
-function TabLabel({ focused, children }) {
+
+const TAB_ROUTES = [
+  { name: 'Home',      title: '홈',    icon: (f) => <Ionicons name={f ? 'home' : 'home-outline'} size={24} color={f ? colors.primaryDark : colors.muted} /> },
+  { name: 'Recipes',   title: '레시피', icon: (f) => <MaterialCommunityIcons name={f ? 'silverware-fork-knife' : 'silverware'} size={24} color={f ? colors.primaryDark : colors.muted} /> },
+  { name: 'Shopping',  title: '장보기', icon: (f) => <Ionicons name={f ? 'basket' : 'basket-outline'} size={24} color={f ? colors.primaryDark : colors.muted} /> },
+  { name: 'Nutrition', title: '영양',  icon: (f) => <MaterialCommunityIcons name={f ? 'chart-donut' : 'chart-donut-variant'} size={24} color={f ? colors.primaryDark : colors.muted} /> },
+  { name: 'MyPage',    title: '마이',  icon: (f) => <Ionicons name={f ? 'person' : 'person-outline'} size={24} color={f ? colors.primaryDark : colors.muted} /> },
+];
+
+function CustomTabBar({ state, navigation }) {
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const TAB_COUNT = TAB_ROUTES.length;
+  const BAR_H = 54;
+  const H_PAD = 5;
+  const tabWidth = screenWidth / TAB_COUNT;
+  const pillWidth = tabWidth - 16;
+
+  const slideAnim = useRef(new Animated.Value(state.index * tabWidth)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: state.index * tabWidth,
+      useNativeDriver: true,
+      tension: 72,
+      friction: 11,
+    }).start();
+  }, [state.index, tabWidth]);
+
   return (
-    <Text
-      style={{
-        fontSize: 11,
-        fontWeight: focused ? '800' : '700',
-        color: focused ? colors.primaryDark : colors.muted,
-      }}
-    >
-      {children}
-    </Text>
+    <Animated.View style={[tabBarStyles.bar, {
+      bottom: 0,
+      height: BAR_H + insets.bottom,
+    }]}>
+      {/* 슬라이딩 초록 배경 — BAR_H 영역 안에만 위치 */}
+      <Animated.View style={[tabBarStyles.pill, {
+        width: pillWidth,
+        height: BAR_H - H_PAD * 2,
+        top: H_PAD,
+        left: (tabWidth - pillWidth) / 2,
+        transform: [{ translateX: slideAnim }],
+      }]} />
+
+      {TAB_ROUTES.map((route, index) => {
+        const focused = state.index === index;
+        return (
+          <Pressable
+            key={route.name}
+            onPress={() => navigation.navigate(route.name)}
+            style={[tabBarStyles.tab, { width: tabWidth, height: BAR_H }]}
+          >
+            {route.icon(focused)}
+            <Text style={[tabBarStyles.label, focused && tabBarStyles.labelActive]}>
+              {route.title}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </Animated.View>
   );
 }
 
+const tabBarStyles = {
+  bar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    elevation: 8,
+  },
+  pill: {
+    position: 'absolute',
+    top: 6,
+    borderRadius: 14,
+    backgroundColor: '#e4f5ec',
+  },
+  tab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    gap: 2,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  labelActive: {
+    fontWeight: '800',
+    color: colors.primaryDark,
+  },
+};
+
 function MainTabs() {
-  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
-      tabBar={(props) => (
-        <BottomTabBar {...props} insets={{ ...props.insets, bottom: 0 }} />
-      )}
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-        tabBarStyle: {
-          position: 'absolute',
-          left: 14,
-          right: 14,
-          bottom: 12 + insets.bottom,
-          height: 68,
-          borderRadius: 18,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
-          shadowColor: '#1c3327',
-          shadowOpacity: 0.12,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 8,
-        },
-        tabBarItemStyle: { paddingTop: 8, paddingBottom: 8 },
-        tabBarIcon: ({ focused, color }) => {
-          const iconColor = focused ? colors.primaryDark : color;
-          const iconSize = 23;
-          if (route.name === 'Home') {
-            return <Ionicons name={focused ? 'home' : 'home-outline'} size={iconSize} color={iconColor} />;
-          }
-          if (route.name === 'Recipes') {
-            return <MaterialCommunityIcons name={focused ? 'silverware-fork-knife' : 'silverware'} size={iconSize} color={iconColor} />;
-          }
-          if (route.name === 'Shopping') {
-            return <Ionicons name={focused ? 'basket' : 'basket-outline'} size={iconSize} color={iconColor} />;
-          }
-          if (route.name === 'Nutrition') {
-            return <MaterialCommunityIcons name={focused ? 'chart-donut' : 'chart-donut-variant'} size={iconSize} color={iconColor} />;
-          }
-          return <Ionicons name={focused ? 'person' : 'person-outline'} size={iconSize} color={iconColor} />;
-        },
-        tabBarLabel: ({ focused, children }) => <TabLabel focused={focused}>{children}</TabLabel>,
-        tabBarActiveTintColor: colors.primaryDark,
-        tabBarInactiveTintColor: colors.muted,
-      })}
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '홈' }} />
       <Tab.Screen name="Recipes" component={RecipesScreen} options={{ title: '레시피' }} />

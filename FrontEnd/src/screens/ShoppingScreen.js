@@ -138,7 +138,7 @@ export default function ShoppingScreen() {
 const styles = StyleSheet.create({
   header: {
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

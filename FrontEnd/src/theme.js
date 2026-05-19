@@ -42,17 +42,19 @@ export const globalStyles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingBottom: 120,
+    gap: 16,
   },
   detailContent: {
     paddingHorizontal: 18,
     paddingBottom: 148,
+    gap: 16,
   },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 14,
-    padding: 16,
+    padding: 18,
     ...shadow,
   },
   row: {
