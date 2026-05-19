@@ -2,6 +2,7 @@ package com.yorizori.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 public final class AuthDtos {
@@ -11,7 +12,7 @@ public final class AuthDtos {
 
     public record SignupRequest(
             @Email @NotBlank String email,
-            @NotBlank String password,
+            @NotBlank @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다") String password,
             String nickname,
             String gender,
             Integer age,

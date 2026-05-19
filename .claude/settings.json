@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($mysql = \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\"; $pass = \"SMT2gmy0\\)qYtb\\)#K\"; & $mysql -u root \"-p$pass\" --host=127.0.0.1 --port=3306 --connect-timeout=5 -e \"SELECT user, host, plugin FROM mysql.user WHERE user='root';\" 2>&1)",
+      "Read(//c/ProgramData/MySQL/MySQL Server 8.0/**)",
+      "PowerShell(Get-Process java)",
+      "PowerShell(Get-Process java 2>$null)",
+      "PowerShell(Stop-Process -Id 45528 -Force)",
+      "Bash(Start-Process -FilePath \".\\\\gradlew.bat\" -ArgumentList \"bootRun\", \"--args=--spring.profiles.active=local\" -NoNewWindow -PassThru)",
+      "PowerShell(cd \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\BackEnd\"; $proc = Start-Process -FilePath \".\\\\gradlew.bat\" -ArgumentList \"bootRun --args='--spring.profiles.active=local'\" -PassThru -WindowStyle Hidden; Write-Output \"Started PID: $\\($proc.Id\\)\")",
+      "PowerShell(Start-Sleep -Seconds 20; try { $resp = Invoke-WebRequest -Uri \"http://localhost:8080/api/v1/recipes\" -TimeoutSec 10; Write-Output \"Server UP: $\\($resp.StatusCode\\)\" } catch { Write-Output \"Not ready yet: $_\" })",
+      "Bash(curl -s http://localhost:8080/api/v1/recipes)",
+      "PowerShell(Get-Process -Id 22036)"
+    ]
+  }
+}

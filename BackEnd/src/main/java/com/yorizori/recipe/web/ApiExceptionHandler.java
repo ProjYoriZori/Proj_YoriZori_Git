@@ -1,5 +1,6 @@
 package com.yorizori.recipe.web;
 
+import com.yorizori.auth.UnauthorizedException;
 import com.yorizori.foodapi.FoodApiParseException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,11 @@ import org.springframework.web.client.RestClientException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<Map<String, String>> handleUnauthorized(UnauthorizedException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException e) {

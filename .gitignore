@@ -1,5 +1,8 @@
 copilot-context.md
-tools/cloud-sql-proxy.exe
+tools/cloud-sql-proxy*.exe
+tools/*.exe
+service-account.json
+service-account*.json
 .env
 *.env
 bin/

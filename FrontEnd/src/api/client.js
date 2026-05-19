@@ -478,7 +478,7 @@ export async function loadInitialData() {
     customFoodsResult,
     seasonalResult,
   ] = await Promise.all([
-    readRequiredList(`${ENDPOINTS.recipes}?limit=50`, normalizeRecipe),
+    readRequiredList(`${ENDPOINTS.recipes}?limit=1200`, normalizeRecipe),
     readList(ENDPOINTS.pantryItems, normalizePantryItem),
     readList(ENDPOINTS.shoppingItems, normalizeShoppingItem),
     readOne(ENDPOINTS.me, normalizeProfile),
@@ -523,7 +523,7 @@ export const api = {
   getRecipes: ({
     query = "",
     ingredient = "",
-    limit = 50,
+    limit = 1200,
     page = 0,
     sort = "latest",
   } = {}) => {

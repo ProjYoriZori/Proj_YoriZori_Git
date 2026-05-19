@@ -27,6 +27,9 @@ public class AuthService {
     @Transactional
     public AuthResponse signup(SignupRequest request) {
         String email = normalizeEmail(request.email());
+        if (request.age() != null && (request.age() < 1 || request.age() > 120)) {
+            throw new IllegalArgumentException("올바른 나이를 입력해 주세요(1~120).");
+        }
         try {
             jdbcTemplate.update("""
                     INSERT INTO users (
