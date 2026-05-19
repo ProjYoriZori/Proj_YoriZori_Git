@@ -254,31 +254,12 @@ export function AppDataProvider({ children }) {
       toggleShoppingItem: async (id) => {
         const target = shoppingItems.find((item) => item.id === id);
         if (!target) return;
-          await api.deleteShoppingItem(id);
+        const nextChecked = !target.isChecked;
         setShoppingItems((items) =>
           items.map((item) =>
             item.id === id ? { ...item, isChecked: nextChecked } : item,
           ),
         );
-        if (nextChecked) {
-          const exists = pantryItems.some(
-            (item) => normalizeName(item.name) === normalizeName(target.name),
-          );
-          if (!exists) {
-        try {
-          await Promise.all(checkedIds.map((id) => api.deleteShoppingItem(id)));
-        } catch {
-          setBackendOnline(false);
-        }
-            actions.addPantryItem({
-              name: target.name,
-              quantity: target.quantity,
-              unit: target.unit,
-              category: "기타",
-              isSelected: false,
-            });
-          }
-        }
         try {
           await api.updateShoppingItem(id, { is_checked: nextChecked });
         } catch {
@@ -287,6 +268,11 @@ export function AppDataProvider({ children }) {
       },
       deleteShoppingItem: async (id) => {
         setShoppingItems((items) => items.filter((item) => item.id !== id));
+        try {
+          await api.deleteShoppingItem(id);
+        } catch {
+          setBackendOnline(false);
+        }
       },
       clearCheckedShoppingItems: async () => {
         const checkedIds = shoppingItems
@@ -294,6 +280,11 @@ export function AppDataProvider({ children }) {
           .map((item) => item.id);
         setShoppingItems((items) => items.filter((item) => !item.isChecked));
         if (!checkedIds.length) return;
+        try {
+          await Promise.all(checkedIds.map((cid) => api.deleteShoppingItem(cid)));
+        } catch {
+          setBackendOnline(false);
+        }
       },
       addNutritionLogFromRecipe: async (recipe, mealType = "점심") => {
         const log = {

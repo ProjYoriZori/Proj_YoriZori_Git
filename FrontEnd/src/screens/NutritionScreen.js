@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import {
@@ -119,7 +121,7 @@ function MealLog({ log, onDelete }) {
   );
 }
 
-function AddFoodModal({ visible, onClose, onSubmit }) {
+function AddFoodModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
   const [form, setForm] = useState({
     name: "",
     servingSize: "",
@@ -154,8 +156,9 @@ function AddFoodModal({ visible, onClose, onSubmit }) {
       animationType="slide"
       onRequestClose={onClose}
     >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet}>
+        <Pressable style={[styles.sheet, { paddingBottom: 28 + bottomInset }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.modalTitle}>자주 먹는 음식 추가</Text>
           <View style={styles.formGap}>
@@ -217,11 +220,13 @@ function AddFoodModal({ visible, onClose, onSubmit }) {
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 export default function NutritionScreen() {
+  const insets = useSafeAreaInsets();
   const {
     loading,
     nutritionLogs,
@@ -410,6 +415,7 @@ export default function NutritionScreen() {
         visible={foodModalVisible}
         onClose={() => setFoodModalVisible(false)}
         onSubmit={addCustomFood}
+        bottomInset={insets.bottom}
       />
     </SafeAreaView>
   );

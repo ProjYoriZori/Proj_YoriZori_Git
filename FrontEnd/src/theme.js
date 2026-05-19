@@ -41,11 +41,11 @@ export const globalStyles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingBottom: 116,
+    paddingBottom: 120,
   },
   detailContent: {
     paddingHorizontal: 18,
-    paddingBottom: 128,
+    paddingBottom: 148,
   },
   card: {
     backgroundColor: colors.surface,

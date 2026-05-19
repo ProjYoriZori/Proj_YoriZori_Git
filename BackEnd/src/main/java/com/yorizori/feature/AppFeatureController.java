@@ -164,15 +164,6 @@ public class AppFeatureController {
                 patchRequest));
     }
 
-        @DeleteMapping("/shopping-items/{shoppingItemId}")
-        public ResponseEntity<Map<String, Boolean>> deleteShoppingItem(
-            HttpServletRequest request,
-            @PathVariable long shoppingItemId
-        ) {
-        service.deleteShoppingItem(authSupport.currentUserId(request), shoppingItemId);
-        return ResponseEntity.ok(Map.of("deleted", true));
-        }
-
     @PostMapping("/nutrition-logs")
     public ResponseEntity<NutritionLogResponse> addNutritionLog(
             HttpServletRequest request,

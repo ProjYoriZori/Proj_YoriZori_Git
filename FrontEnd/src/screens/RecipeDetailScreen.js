@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -9,15 +10,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Vibration,
   View,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import {
   Card,
   Chip,
+  useToast,
   EmptyState,
   Field,
   IconButton,
@@ -53,14 +58,18 @@ function TimerModal({
   setRunning,
 }) {
   const [inputMin, setInputMin] = useState("5");
-  const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
-  const remainSeconds = String(seconds % 60).padStart(2, "0");
+  const [inputSec, setInputSec] = useState("0");
+  const displayMin = String(Math.floor(seconds / 60)).padStart(2, "0");
+  const displaySec = String(seconds % 60).padStart(2, "0");
 
-  const start = (min) => {
-    const next = Math.max(1, Number(min || 1)) * 60;
-    setSeconds(next);
+  const start = (min, sec = 0) => {
+    const total = Number(min || 0) * 60 + Number(sec || 0);
+    if (total <= 0) return;
+    setSeconds(total);
     setRunning(true);
   };
+
+  const isIdle = !running && seconds === 0;
 
   return (
     <Modal
@@ -75,26 +84,48 @@ function TimerModal({
             <Text style={styles.modalTitle}>조리 타이머</Text>
             <IconButton icon="close" size={34} onPress={onClose} />
           </View>
+
           <View style={styles.timerDisplay}>
             <Text style={styles.timerText}>
-              {minutes}:{remainSeconds}
+              {displayMin}:{displaySec}
             </Text>
           </View>
-          {!running && seconds === 0 ? (
-            <Field
-              value={inputMin}
-              onChangeText={setInputMin}
-              keyboardType="number-pad"
-              placeholder="분"
-              style={styles.timerInput}
-            />
+
+          {isIdle ? (
+            <View style={styles.inputRow}>
+              <View style={styles.inputWrap}>
+                <Field
+                  value={inputMin}
+                  onChangeText={setInputMin}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  style={styles.timerInputField}
+                />
+                <Text style={styles.inputUnit}>분</Text>
+              </View>
+              <Text style={styles.inputColon}>:</Text>
+              <View style={styles.inputWrap}>
+                <Field
+                  value={inputSec}
+                  onChangeText={(v) => {
+                    const n = Number(v);
+                    if (n >= 0 && n <= 59) setInputSec(v);
+                  }}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  style={styles.timerInputField}
+                />
+                <Text style={styles.inputUnit}>초</Text>
+              </View>
+            </View>
           ) : null}
+
           <View style={styles.timerActions}>
-            {!running && seconds === 0 ? (
+            {isIdle ? (
               <PrimaryButton
                 label="시작"
                 icon="play"
-                onPress={() => start(inputMin)}
+                onPress={() => start(inputMin, inputSec)}
                 style={{ flex: 1 }}
               />
             ) : (
@@ -108,20 +139,18 @@ function TimerModal({
                 <IconButton
                   icon="restart"
                   size={48}
-                  onPress={() => {
-                    setRunning(false);
-                    setSeconds(0);
-                  }}
+                  onPress={() => { setRunning(false); setSeconds(0); }}
                 />
               </>
             )}
           </View>
+
           <View style={styles.quickTimer}>
-            {[1, 3, 5, 10].map((min) => (
+            {[{ min: 1, sec: 0 }, { min: 3, sec: 0 }, { min: 5, sec: 0 }, { min: 10, sec: 0 }, { min: 0, sec: 30 }].map((t) => (
               <Chip
-                key={min}
-                label={`${min}분`}
-                onPress={() => start(min)}
+                key={`${t.min}:${t.sec}`}
+                label={t.min > 0 ? `${t.min}분` : `${t.sec}초`}
+                onPress={() => start(t.min, t.sec)}
                 icon="timer-outline"
               />
             ))}
@@ -133,6 +162,7 @@ function TimerModal({
 }
 
 export default function RecipeDetailScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const {
     recipes,
     pantryItems,
@@ -143,6 +173,7 @@ export default function RecipeDetailScreen({ navigation, route }) {
   const [recipe, setRecipe] = useState(
     () => recipes.find((item) => item.id === recipeId) || null,
   );
+  const { showToast, ToastContainer } = useToast();
   const [mealType, setMealType] = useState("점심");
   const [logVisible, setLogVisible] = useState(false);
   const [timerVisible, setTimerVisible] = useState(false);
@@ -187,11 +218,72 @@ export default function RecipeDetailScreen({ navigation, route }) {
     };
   }, [recipeId]);
 
+  const playDing = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+      const { sound } = await Audio.Sound.createAsync(
+        require("../../assets/ding.wav"),
+        { shouldPlay: true, volume: 1.0 },
+      );
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) sound.unloadAsync();
+      });
+    } catch {
+      Vibration.vibrate([0, 200, 100, 200, 100, 400]);
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    Alert.alert("⏰ 띠링~!", "타이머가 완료됐어요!", [{ text: "확인", style: "default" }]);
+  };
+
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-  const startPosition = { x: screenWidth - 78, y: screenHeight - 220 };
+  const TIMER_SIZE = 58;
+  const insetsRef = useRef(insets);
+  useEffect(() => { insetsRef.current = insets; }, [insets]);
+
+  function snapToEdge(rawX, rawY) {
+    const ins = insetsRef.current;
+    const minX = 12;
+    const maxX = screenWidth - TIMER_SIZE - 12;
+    const minY = (ins.top || 50) + 12;
+    const maxY = screenHeight - TIMER_SIZE - (ins.bottom || 34) - 90;
+    const clampX = v => Math.max(minX, Math.min(maxX, v));
+    const clampY = v => Math.max(minY, Math.min(maxY, v));
+    const cx = rawX + TIMER_SIZE / 2;
+    const cy = rawY + TIMER_SIZE / 2;
+    const dLeft = cx;
+    const dRight = screenWidth - cx;
+    const dTop = cy - (ins.top || 50);
+    const dBottom = screenHeight - (ins.bottom || 34) - 90 - cy;
+    const min = Math.min(dLeft, dRight, dTop, dBottom);
+    if (min === dLeft)  return { x: minX, y: clampY(rawY), edge: 'left' };
+    if (min === dRight) return { x: maxX, y: clampY(rawY), edge: 'right' };
+    if (min === dTop)   return { x: clampX(rawX), y: minY, edge: 'top' };
+    return { x: clampX(rawX), y: maxY, edge: 'bottom' };
+  }
+
+  function constrainToEdge(rawX, rawY, edge) {
+    const ins = insetsRef.current;
+    const minX = 12;
+    const maxX = screenWidth - TIMER_SIZE - 12;
+    const minY = (ins.top || 50) + 12;
+    const maxY = screenHeight - TIMER_SIZE - (ins.bottom || 34) - 90;
+    const clampX = v => Math.max(minX, Math.min(maxX, v));
+    const clampY = v => Math.max(minY, Math.min(maxY, v));
+    if (edge === 'left')   return { x: minX, y: clampY(rawY) };
+    if (edge === 'right')  return { x: maxX, y: clampY(rawY) };
+    if (edge === 'top')    return { x: clampX(rawX), y: minY };
+    return { x: clampX(rawX), y: maxY };
+  }
+
+  const startPosition = { x: screenWidth - TIMER_SIZE - 12, y: screenHeight / 2 - TIMER_SIZE / 2 };
   const pan = useRef(new Animated.ValueXY(startPosition)).current;
   const origin = useRef(startPosition);
   const moved = useRef(false);
+  const currentEdge = useRef('right');
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -200,31 +292,18 @@ export default function RecipeDetailScreen({ navigation, route }) {
         moved.current = false;
       },
       onPanResponderMove: (_, gesture) => {
-        if (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5)
-          moved.current = true;
-        const next = {
-          x: Math.min(
-            Math.max(12, origin.current.x + gesture.dx),
-            screenWidth - 68,
-          ),
-          y: Math.min(
-            Math.max(92, origin.current.y + gesture.dy),
-            screenHeight - 96,
-          ),
-        };
-        pan.setValue(next);
+        if (Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5) moved.current = true;
+        const rawX = origin.current.x + gesture.dx;
+        const rawY = origin.current.y + gesture.dy;
+        const pos = constrainToEdge(rawX, rawY, currentEdge.current);
+        pan.setValue(pos);
       },
       onPanResponderRelease: (_, gesture) => {
-        origin.current = {
-          x: Math.min(
-            Math.max(12, origin.current.x + gesture.dx),
-            screenWidth - 68,
-          ),
-          y: Math.min(
-            Math.max(92, origin.current.y + gesture.dy),
-            screenHeight - 96,
-          ),
-        };
+        const rawX = origin.current.x + gesture.dx;
+        const rawY = origin.current.y + gesture.dy;
+        const snapped = snapToEdge(rawX, rawY);
+        currentEdge.current = snapped.edge;
+        origin.current = { x: snapped.x, y: snapped.y };
         pan.setValue(origin.current);
         if (!moved.current) setTimerVisible(true);
       },
@@ -237,6 +316,7 @@ export default function RecipeDetailScreen({ navigation, route }) {
       setSeconds((current) => {
         if (current <= 1) {
           setRunning(false);
+          playDing();
           return 0;
         }
         return current - 1;
@@ -405,7 +485,7 @@ export default function RecipeDetailScreen({ navigation, route }) {
         </Card>
       </ScrollView>
 
-      <View style={styles.bottomActions}>
+      <View style={[styles.bottomActions, { paddingBottom: 16 + insets.bottom }]}>
         <PrimaryButton
           label="식사 기록"
           icon="playlist-plus"
@@ -417,20 +497,27 @@ export default function RecipeDetailScreen({ navigation, route }) {
           icon="basket-plus-outline"
           tone="secondary"
           disabled={!match.missing.length}
-          onPress={() => addMissingIngredientsToShopping(recipe, match.missing)}
+          onPress={() => {
+            addMissingIngredientsToShopping(recipe, match.missing);
+            showToast(`${match.missing.length}개 재료가 장보기에 추가됐어요`);
+          }}
           style={{ flex: 1 }}
         />
       </View>
+
+      {ToastContainer}
 
       <Animated.View
         {...panResponder.panHandlers}
         style={[styles.floatingTimer, pan.getLayout()]}
       >
-        <MaterialCommunityIcons
-          name="timer-outline"
-          size={28}
-          color={colors.surface}
-        />
+        {seconds > 0 ? (
+          <Text style={styles.floatingTimerText}>
+            {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}
+          </Text>
+        ) : (
+          <MaterialCommunityIcons name="timer-outline" size={28} color={colors.surface} />
+        )}
       </Animated.View>
 
       <TimerModal
@@ -452,7 +539,7 @@ export default function RecipeDetailScreen({ navigation, route }) {
           style={styles.modalOverlay}
           onPress={() => setLogVisible(false)}
         >
-          <Pressable style={styles.sheet}>
+          <Pressable style={[styles.sheet, { paddingBottom: 28 + insets.bottom }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.modalTitle}>먹은 음식으로 기록</Text>
             <Text style={globalStyles.subtitle}>
@@ -617,7 +704,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     padding: 16,
-    paddingBottom: 28,
     backgroundColor: "rgba(255,255,255,0.96)",
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -631,6 +717,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadow,
+  },
+  floatingTimerText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
@@ -669,6 +761,33 @@ const styles = StyleSheet.create({
   timerInput: {
     textAlign: "center",
     marginBottom: 12,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  timerInputField: {
+    flex: 1,
+    textAlign: "center",
+  },
+  inputUnit: {
+    color: colors.textSoft,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  inputColon: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
   },
   timerActions: {
     flexDirection: "row",

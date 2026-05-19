@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, Chip, EmptyState, Field, IconButton, PrimaryButton, SectionHeader } from '../components/ui';
@@ -9,7 +9,7 @@ import { colors, globalStyles } from '../theme';
 
 const categories = ['채소', '과일', '육류', '해산물', '유제품', '계란', '두부/콩류', '양념/소스', '냉동식품', '기타'];
 
-function AddPantryModal({ visible, onClose, onSubmit }) {
+function AddPantryModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
   const [form, setForm] = useState({ name: '', quantity: '', unit: '', category: '채소' });
 
   const submit = async () => {
@@ -21,8 +21,9 @@ function AddPantryModal({ visible, onClose, onSubmit }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet}>
+        <Pressable style={[styles.sheet, { paddingBottom: 28 + bottomInset }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.modalTitle}>재료 추가</Text>
           <View style={styles.formGap}>
@@ -45,11 +46,13 @@ function AddPantryModal({ visible, onClose, onSubmit }) {
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 export default function FridgeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const {
     pantryItems,
     addPantryItem,
@@ -110,10 +113,10 @@ export default function FridgeScreen({ navigation }) {
         label="재료 추가"
         icon="plus"
         onPress={() => setModalVisible(true)}
-        style={styles.fab}
+        style={[styles.fab, { bottom: 22 + insets.bottom }]}
       />
 
-      <AddPantryModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={addPantryItem} />
+      <AddPantryModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={addPantryItem} bottomInset={insets.bottom} />
     </SafeAreaView>
   );
 }

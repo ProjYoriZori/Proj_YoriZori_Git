@@ -132,12 +132,18 @@ function parsePublicRecipeSteps(recipe) {
   return steps;
 }
 
+const CIRCLED_NUMBERS = /[①②③④⑤⑥⑦⑧⑨⑩]/g;
+
+function cleanInstruction(text = "") {
+  return text.replace(CIRCLED_NUMBERS, "").replace(/\s{2,}/g, " ").trim();
+}
+
 function normalizeStep(raw, index = 0) {
   if (typeof raw === "string") {
     return {
       id: index + 1,
       stepNo: index + 1,
-      instruction: raw,
+      instruction: cleanInstruction(raw),
       imageUrl: "",
     };
   }
@@ -145,7 +151,7 @@ function normalizeStep(raw, index = 0) {
   return {
     id: raw?.id || raw?.stepId || raw?.step_id || index + 1,
     stepNo: raw?.stepNo || raw?.step_no || index + 1,
-    instruction: raw?.instruction || raw?.description || raw?.text || "",
+    instruction: cleanInstruction(raw?.instruction || raw?.description || raw?.text || ""),
     durationMin: raw?.durationMin || raw?.duration_min,
     imageUrl: raw?.imageUrl || raw?.image_url || "",
   };
@@ -172,18 +178,27 @@ function splitQuantityText(quantityText = "") {
   };
 }
 
+function cleanIngredientName(name = "") {
+  return name
+    .replace(/^[^>]+>\s*/, "")
+    .replace(CIRCLED_NUMBERS, "")
+    .trim();
+}
+
 export function normalizeRecipe(raw) {
   if (!raw) return null;
   const nutrition = raw.nutrition || {};
-  const ingredients = Array.isArray(raw.ingredients)
+  const seen = new Set();
+  const rawIngredients = Array.isArray(raw.ingredients)
     ? raw.ingredients.map((item) => ({
         id: item.ingredient_id || item.ingredientId || item.id,
-        name:
+        name: cleanIngredientName(
           item.name ||
           item.ingredient_name ||
           item.original_name ||
           item.originalName ||
-          "",
+          ""
+        ),
         amount:
           item.amount ||
           item.amount_text ||
@@ -191,6 +206,11 @@ export function normalizeRecipe(raw) {
           [item.quantity, item.unit].filter(Boolean).join(" "),
       }))
     : parsePublicRecipeIngredients(raw.RCP_PARTS_DTLS);
+  const ingredients = rawIngredients.filter(({ name }) => {
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
 
   const stepSource = Array.isArray(raw.stepDetails)
     ? raw.stepDetails
@@ -282,17 +302,13 @@ export function normalizePantryItem(raw) {
 }
 
 export function normalizeShoppingItem(raw) {
+  const rawName = raw.item_name || raw.itemName || raw.name || "";
   return {
     id: String(raw.shopping_item_id || raw.shoppingItemId || raw.id),
     recipeId: raw.recipe_id || raw.recipeId,
     ingredientId: raw.ingredient_id || raw.ingredientId,
-    name: raw.item_name || raw.itemName || raw.name || "",
-    normalizedName:
-      raw.normalized_name ||
-      raw.normalizedName ||
-      raw.item_name ||
-      raw.name ||
-      "",
+    name: cleanIngredientName(rawName),
+    normalizedName: raw.normalized_name || raw.normalizedName || rawName,
     quantity: raw.quantity ? String(raw.quantity) : "",
     unit: raw.unit || "",
     recipeName: raw.recipe_name || raw.recipeName || "",

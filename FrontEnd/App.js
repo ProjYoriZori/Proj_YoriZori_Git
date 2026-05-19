@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
 
 import { AppDataProvider } from './src/context/AppDataContext';
+import AuthScreen from './src/screens/AuthScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import RecipesScreen from './src/screens/RecipesScreen';
 import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
@@ -70,8 +72,12 @@ function TabLabel({ focused, children }) {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
+      tabBar={(props) => (
+        <BottomTabBar {...props} insets={{ ...props.insets, bottom: 0 }} />
+      )}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -79,7 +85,7 @@ function MainTabs() {
           position: 'absolute',
           left: 14,
           right: 14,
-          bottom: 12,
+          bottom: 12 + insets.bottom,
           height: 68,
           borderRadius: 18,
           borderWidth: 1,
@@ -124,6 +130,34 @@ function MainTabs() {
 }
 
 export default function App() {
+  const [screen, setScreen] = useState('auth'); // 'auth' | 'onboarding' | 'main'
+
+  const handleAuth = ({ isNewUser }) => {
+    if (isNewUser) {
+      setScreen('onboarding');
+    } else {
+      setScreen('main');
+    }
+  };
+
+  if (screen === 'auth') {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <AuthScreen onAuth={handleAuth} />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (screen === 'onboarding') {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <OnboardingScreen onComplete={() => setScreen('main')} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AppDataProvider>

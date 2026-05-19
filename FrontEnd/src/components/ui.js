@@ -1,5 +1,5 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, globalStyles } from '../theme';
 
@@ -94,6 +94,49 @@ export function LoadingState() {
       <Text style={styles.loadingText}>데이터를 준비하고 있어요</Text>
     </View>
   );
+}
+
+function ToastView({ message }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]),
+      Animated.delay(1800),
+      Animated.timing(opacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.toast, { opacity, transform: [{ translateY }] }]}>
+      <MaterialCommunityIcons name="check-circle-outline" size={17} color={colors.surface} />
+      <Text style={styles.toastText}>{message}</Text>
+    </Animated.View>
+  );
+}
+
+export function useToast() {
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = (message) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 2500);
+  };
+
+  const ToastContainer = toasts.length > 0 ? (
+    <View style={styles.toastContainer} pointerEvents="none">
+      {toasts.map((t) => <ToastView key={t.id} message={t.message} />)}
+    </View>
+  ) : null;
+
+  return { showToast, ToastContainer };
 }
 
 const styles = StyleSheet.create({
@@ -192,5 +235,33 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: colors.textSoft,
     fontWeight: '700',
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 110,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 999,
+  },
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.text,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  toastText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

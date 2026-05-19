@@ -133,11 +133,6 @@ public class AppFeatureService {
     }
 
     @Transactional
-    public void deleteShoppingItem(long userId, long shoppingItemId) {
-        repository.deleteShoppingItem(userId, shoppingItemId);
-    }
-
-    @Transactional
     public NutritionLogResponse addNutritionLog(long userId, FeatureDtos.NutritionLogRequest request) {
         if (request.recipeId() != null) {
             RecipeResponse recipe = recipeQueryService.findRecipe(request.recipeId());

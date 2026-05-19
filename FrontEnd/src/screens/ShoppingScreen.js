@@ -1,62 +1,66 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, EmptyState, Field, IconButton, PrimaryButton, SectionHeader } from '../components/ui';
 import { useAppData } from '../context/AppDataContext';
 import { colors, globalStyles } from '../theme';
 
-function AddShoppingModal({ visible, onClose, onSubmit }) {
-  const [form, setForm] = useState({ name: '', quantity: '', unit: '' });
+function AddShoppingModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
+  const [name, setName] = useState('');
 
   const submit = async () => {
-    if (!form.name.trim()) return;
-    await onSubmit(form);
-    setForm({ name: '', quantity: '', unit: '' });
+    if (!name.trim()) return;
+    await onSubmit({ name });
+    setName('');
     onClose();
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet}>
+        <Pressable style={[styles.sheet, { paddingBottom: 28 + bottomInset }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.modalTitle}>장보기 항목 추가</Text>
           <View style={styles.formGap}>
-            <Field value={form.name} onChangeText={(name) => setForm((current) => ({ ...current, name }))} placeholder="재료명" />
-            <View style={styles.formRow}>
-              <Field value={form.quantity} onChangeText={(quantity) => setForm((current) => ({ ...current, quantity }))} placeholder="수량" style={{ flex: 1 }} />
-              <Field value={form.unit} onChangeText={(unit) => setForm((current) => ({ ...current, unit }))} placeholder="단위" style={{ width: 92 }} />
-            </View>
-            <PrimaryButton label="추가하기" icon="plus" onPress={submit} disabled={!form.name.trim()} />
+            <Field value={name} onChangeText={setName} placeholder="재료명을 입력하세요" autoFocus />
+            <PrimaryButton label="추가하기" icon="plus" onPress={submit} disabled={!name.trim()} />
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 function ShoppingItemRow({ item, onToggle, onDelete }) {
+  const openCoupang = () => {
+    const query = encodeURIComponent(item.name);
+    Linking.openURL(`https://www.coupang.com/np/search?q=${query}`);
+  };
+
   return (
     <View style={[styles.itemRow, item.isChecked && styles.checkedRow]}>
       <Pressable onPress={() => onToggle(item.id)} style={[styles.checkbox, item.isChecked && styles.checkboxActive]}>
         <MaterialCommunityIcons name={item.isChecked ? 'check-bold' : 'circle-outline'} size={18} color={item.isChecked ? colors.surface : colors.muted} />
       </Pressable>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.itemName, item.isChecked && styles.checkedText]}>{item.name}</Text>
-        <Text style={styles.itemMeta}>
-          {[item.quantity, item.unit].filter(Boolean).join(' ') || '수량 미입력'}
-        </Text>
-      </View>
+      <Text style={[styles.itemName, { flex: 1 }, item.isChecked && styles.checkedText]}>{item.name}</Text>
+      <Pressable onPress={openCoupang} style={styles.buyButton}>
+        <MaterialCommunityIcons name="cart-outline" size={13} color={colors.primaryDark} />
+        <Text style={styles.buyButtonText}>구매하기</Text>
+      </Pressable>
       <IconButton icon="trash-can-outline" size={36} color={colors.danger} backgroundColor="#fff0ef" onPress={() => onDelete(item.id)} />
     </View>
   );
 }
 
 export default function ShoppingScreen() {
+  const insets = useSafeAreaInsets();
   const {
     shoppingItems,
+    recipes,
     addShoppingItem,
     toggleShoppingItem,
     deleteShoppingItem,
@@ -64,14 +68,23 @@ export default function ShoppingScreen() {
   } = useAppData();
   const [modalVisible, setModalVisible] = useState(false);
 
+  const recipeNameById = useMemo(() => {
+    const map = {};
+    recipes.forEach((r) => { map[String(r.id)] = r.name; });
+    return map;
+  }, [recipes]);
+
   const unchecked = shoppingItems.filter((item) => !item.isChecked);
   const checked = shoppingItems.filter((item) => item.isChecked);
+
   const grouped = useMemo(() => unchecked.reduce((acc, item) => {
-    const key = item.recipeName || '직접 추가';
+    const key = item.recipeId
+      ? (recipeNameById[String(item.recipeId)] || item.recipeName || '레시피')
+      : (item.recipeName || '직접 추가');
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
     return acc;
-  }, {}), [unchecked]);
+  }, {}), [unchecked, recipeNameById]);
 
   return (
     <SafeAreaView style={globalStyles.screen} edges={['top']}>
@@ -116,7 +129,8 @@ export default function ShoppingScreen() {
         <PrimaryButton label="항목 직접 추가" icon="plus" onPress={() => setModalVisible(true)} />
       </ScrollView>
 
-      <AddShoppingModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={addShoppingItem} />
+      <AddShoppingModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={addShoppingItem} bottomInset={insets.bottom} />
+
     </SafeAreaView>
   );
 }
@@ -184,6 +198,23 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontSize: 12,
     fontWeight: '700',
+  },
+  buyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 6,
+  },
+  buyButtonText: {
+    color: colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '900',
   },
   overlay: {
     flex: 1,

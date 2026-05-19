@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   Pressable,
@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { Chip, EmptyState, Field, LoadingState } from "../components/ui";
+import { Chip, EmptyState, Field, IconButton, LoadingState } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
 import { colors, globalStyles } from "../theme";
 import { filterRecipes, getMatchInfo } from "../utils/recipes";
@@ -33,8 +33,8 @@ function RecipeRow({ recipe, pantryItems, onPress }) {
       <View style={styles.recipeInfo}>
         <Text style={styles.recipeName}>{recipe.name}</Text>
         <Text style={styles.recipeMeta}>
-          {recipe.method || "조리"} · {recipe.category || "레시피"} ·{" "}
-          {recipe.cookingTime || 0}분
+          {recipe.method || "조리"} · {recipe.category || "레시피"}
+          {recipe.cookingTime ? ` · ${recipe.cookingTime}분` : ""}
         </Text>
         <View style={styles.badges}>
           <View style={[styles.badge, { backgroundColor: "#fff2ea" }]}>
@@ -86,35 +86,34 @@ export default function RecipesScreen({ navigation, route }) {
   const [mode, setMode] = useState(
     route?.params?.sortByPantry ? "pantry" : "all",
   );
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      loadRecipes({
-        query: keyword,
-        ingredient,
-        limit: 1200,
-        sort: "latest",
-      });
+      loadRecipes({ query: keyword, ingredient, limit: 1200, sort: "latest" });
     }, 350);
     return () => clearTimeout(handle);
   }, [keyword, ingredient, loadRecipes]);
 
+  useEffect(() => { setPage(0); }, [keyword, ingredient, mode]);
+  useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: true }); }, [page]);
+
   const visibleRecipes = useMemo(
-    () =>
-      filterRecipes(recipes, {
-        keyword,
-        ingredient,
-        pantryItems,
-        sortByPantry: mode === "pantry",
-      }),
+    () => filterRecipes(recipes, { keyword, ingredient, pantryItems, sortByPantry: mode === "pantry" }),
     [recipes, keyword, ingredient, pantryItems, mode],
   );
+
+  const totalPages = Math.ceil(visibleRecipes.length / PAGE_SIZE);
+  const pageRecipes = visibleRecipes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (loading) return <LoadingState />;
 
   return (
     <SafeAreaView style={globalStyles.screen} edges={["top"]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={globalStyles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -169,20 +168,19 @@ export default function RecipesScreen({ navigation, route }) {
         </View>
 
         <View style={styles.countRow}>
-          <Text style={styles.countText}>
-            총 {visibleRecipes.length}개의 레시피
-          </Text>
+          <Text style={styles.countText}>총 {visibleRecipes.length}개의 레시피</Text>
+          {totalPages > 1 && (
+            <Text style={styles.countText}>{page + 1} / {totalPages} 페이지</Text>
+          )}
         </View>
 
         <View style={styles.list}>
-          {visibleRecipes.map((recipe) => (
+          {pageRecipes.map((recipe) => (
             <RecipeRow
               key={recipe.id}
               recipe={recipe}
               pantryItems={pantryItems}
-              onPress={() =>
-                navigation.navigate("RecipeDetail", { recipeId: recipe.id })
-              }
+              onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
             />
           ))}
         </View>
@@ -191,11 +189,26 @@ export default function RecipesScreen({ navigation, route }) {
           <EmptyState
             icon={recipeError ? "database-alert-outline" : "magnify-close"}
             title={recipeError ? "레시피 API 연결 실패" : "검색 결과가 없어요"}
-            body={
-              recipeError ||
-              "DB에 저장된 레시피가 없거나 검색어와 일치하는 레시피가 없습니다."
-            }
+            body={recipeError || "DB에 저장된 레시피가 없거나 검색어와 일치하는 레시피가 없습니다."}
           />
+        ) : null}
+
+        {totalPages > 1 ? (
+          <View style={styles.pagination}>
+            <IconButton
+              icon="chevron-left"
+              onPress={() => setPage((p) => Math.max(0, p - 1))}
+              backgroundColor={page === 0 ? colors.border : colors.surfaceAlt}
+              color={page === 0 ? colors.muted : colors.text}
+            />
+            <Text style={styles.pageText}>{page + 1} / {totalPages}</Text>
+            <IconButton
+              icon="chevron-right"
+              onPress={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              backgroundColor={page === totalPages - 1 ? colors.border : colors.surfaceAlt}
+              color={page === totalPages - 1 ? colors.muted : colors.text}
+            />
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -236,11 +249,28 @@ const styles = StyleSheet.create({
   countRow: {
     marginTop: 18,
     marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   countText: {
     color: colors.textSoft,
     fontSize: 12,
     fontWeight: "800",
+  },
+  pagination: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    marginTop: 16,
+  },
+  pageText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+    minWidth: 60,
+    textAlign: "center",
   },
   list: {
     gap: 12,
