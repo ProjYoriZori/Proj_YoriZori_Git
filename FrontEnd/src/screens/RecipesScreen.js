@@ -92,7 +92,7 @@ export default function RecipesScreen({ navigation, route }) {
       loadRecipes({
         query: keyword,
         ingredient,
-        limit: 50,
+        limit: 1200,
         sort: "latest",
       });
     }, 350);

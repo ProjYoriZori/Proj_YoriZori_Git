@@ -9,7 +9,8 @@
       "Bash(Start-Process -FilePath \".\\\\gradlew.bat\" -ArgumentList \"bootRun\", \"--args=--spring.profiles.active=local\" -NoNewWindow -PassThru)",
       "PowerShell(cd \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\BackEnd\"; $proc = Start-Process -FilePath \".\\\\gradlew.bat\" -ArgumentList \"bootRun --args='--spring.profiles.active=local'\" -PassThru -WindowStyle Hidden; Write-Output \"Started PID: $\\($proc.Id\\)\")",
       "PowerShell(Start-Sleep -Seconds 20; try { $resp = Invoke-WebRequest -Uri \"http://localhost:8080/api/v1/recipes\" -TimeoutSec 10; Write-Output \"Server UP: $\\($resp.StatusCode\\)\" } catch { Write-Output \"Not ready yet: $_\" })",
-      "Bash(curl -s http://localhost:8080/api/v1/recipes)"
+      "Bash(curl -s http://localhost:8080/api/v1/recipes)",
+      "PowerShell(Get-Process -Id 22036)"
     ]
   }
 }

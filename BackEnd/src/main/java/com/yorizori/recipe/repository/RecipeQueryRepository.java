@@ -70,7 +70,7 @@ public class RecipeQueryRepository {
         }
 
         sql.append(orderBy(sort));
-        int safeSize = Math.max(1, Math.min(size, 100));
+        int safeSize = Math.max(1, Math.min(size, 1200));
         int safePage = Math.max(0, page);
         sql.append(" LIMIT ? OFFSET ?");
         args.add(safeSize);
