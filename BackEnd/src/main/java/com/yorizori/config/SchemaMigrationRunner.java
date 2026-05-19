@@ -18,10 +18,91 @@ public class SchemaMigrationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         createFeatureTables();
+        ensureUsersColumns();
+        ensurePantryItemColumns();
+        ensureShoppingItemColumns();
+        ensureNutritionLogColumns();
+        ensureCustomFoodColumns();
+        seedDefaultGuestUser();
         normalizeColumn("ingest_jobs", "source", "VARCHAR(50) NOT NULL DEFAULT 'COOKRCP01'");
         normalizeColumn("ingest_jobs", "job_type", "VARCHAR(50) NOT NULL DEFAULT 'RECIPE_INGEST'");
         relaxStrictColumns("ingest_jobs");
         relaxStrictColumns("api_raw_responses");
+    }
+
+    private void ensureUsersColumns() {
+        ensureColumn("users", "password_hash", "VARCHAR(255) NOT NULL DEFAULT ''");
+        ensureColumn("users", "nickname", "VARCHAR(100) NULL");
+        ensureColumn("users", "gender", "VARCHAR(20) NULL");
+        ensureColumn("users", "age", "INT NULL");
+        ensureColumn("users", "height_cm", "DECIMAL(6,2) NULL");
+        ensureColumn("users", "weight_kg", "DECIMAL(6,2) NULL");
+        ensureColumn("users", "goal", "VARCHAR(30) NOT NULL DEFAULT 'MAINTAIN'");
+        ensureColumn("users", "activity_level", "VARCHAR(30) NOT NULL DEFAULT 'NORMAL'");
+        ensureColumn("users", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn("users", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void ensurePantryItemColumns() {
+        renameColumnIfNeeded("pantry_items", "ingredient_name", "name", "VARCHAR(120) NOT NULL");
+        ensureColumn("pantry_items", "name", "VARCHAR(120) NOT NULL");
+        ensureColumn("pantry_items", "normalized_name", "VARCHAR(120) NOT NULL");
+        ensureColumn("pantry_items", "quantity_text", "VARCHAR(120) NULL");
+        ensureColumn("pantry_items", "expires_at", "DATE NULL");
+        ensureColumn("pantry_items", "memo", "VARCHAR(500) NULL");
+        ensureColumn("pantry_items", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn("pantry_items", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void ensureShoppingItemColumns() {
+        renameColumnIfNeeded("shopping_items", "item_name", "name", "VARCHAR(120) NOT NULL");
+        renameColumnIfNeeded("shopping_items", "is_checked", "checked", "BOOLEAN NOT NULL DEFAULT FALSE");
+        ensureColumn("shopping_items", "name", "VARCHAR(120) NOT NULL");
+        ensureColumn("shopping_items", "normalized_name", "VARCHAR(120) NOT NULL");
+        ensureColumn("shopping_items", "checked", "BOOLEAN NOT NULL DEFAULT FALSE");
+        ensureColumn("shopping_items", "recipe_id", "BIGINT NULL");
+        ensureColumn("shopping_items", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn("shopping_items", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void ensureNutritionLogColumns() {
+        renameColumnIfNeeded("nutrition_logs", "food_name", "custom_food_name", "VARCHAR(255) NULL");
+        renameColumnIfNeeded("nutrition_logs", "log_date", "meal_date", "DATE NOT NULL");
+        renameColumnIfNeeded("nutrition_logs", "meal_type", "meal_time", "VARCHAR(30) NOT NULL");
+        renameColumnIfNeeded("nutrition_logs", "serving_count", "multiplier", "DECIMAL(8,2) NOT NULL DEFAULT 1");
+        ensureColumn("nutrition_logs", "custom_food_name", "VARCHAR(255) NULL");
+        ensureColumn("nutrition_logs", "meal_date", "DATE NOT NULL");
+        ensureColumn("nutrition_logs", "meal_time", "VARCHAR(30) NOT NULL");
+        ensureColumn("nutrition_logs", "multiplier", "DECIMAL(8,2) NOT NULL DEFAULT 1");
+        ensureColumn("nutrition_logs", "kcal", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("nutrition_logs", "carbohydrate_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("nutrition_logs", "protein_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("nutrition_logs", "fat_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("nutrition_logs", "sodium_mg", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("nutrition_logs", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn("nutrition_logs", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void ensureCustomFoodColumns() {
+        renameColumnIfNeeded("custom_foods", "food_name", "name", "VARCHAR(255) NOT NULL");
+        renameColumnIfNeeded("custom_foods", "calorie_kcal", "kcal", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("custom_foods", "name", "VARCHAR(255) NOT NULL");
+        ensureColumn("custom_foods", "kcal", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("custom_foods", "carbohydrate_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("custom_foods", "protein_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("custom_foods", "fat_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("custom_foods", "sodium_mg", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        ensureColumn("custom_foods", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn("custom_foods", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void seedDefaultGuestUser() {
+        jdbcTemplate.update("""
+                INSERT IGNORE INTO users (
+                    user_id, email, password_hash, nickname, gender, age, height_cm, weight_kg, goal, activity_level
+                )
+                VALUES (1, 'guest@yorizori.local', 'guest', '게스트', NULL, NULL, NULL, NULL, 'MAINTAIN', 'NORMAL')
+                """);
     }
 
     private void createFeatureTables() {
@@ -166,6 +247,18 @@ public class SchemaMigrationRunner implements ApplicationRunner {
                 columnName
         );
         return count != null && count > 0;
+    }
+
+    private void ensureColumn(String tableName, String columnName, String definition) {
+        if (!columnExists(tableName, columnName)) {
+            jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
+        }
+    }
+
+    private void renameColumnIfNeeded(String tableName, String oldName, String newName, String definition) {
+        if (columnExists(tableName, oldName) && !columnExists(tableName, newName)) {
+            jdbcTemplate.execute("ALTER TABLE " + tableName + " CHANGE COLUMN " + oldName + " " + newName + " " + definition);
+        }
     }
 
     private void normalizeColumn(String tableName, String columnName, String definition) {

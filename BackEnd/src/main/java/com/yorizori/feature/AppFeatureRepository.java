@@ -215,6 +215,11 @@ public class AppFeatureRepository {
                 """, userId, recipeId, required(name, "Shopping item name"), normalizedName);
     }
 
+    public void deleteShoppingItem(long userId, long shoppingItemId) {
+        jdbcTemplate.update("DELETE FROM shopping_items WHERE user_id = ? AND shopping_item_id = ?",
+                userId, shoppingItemId);
+    }
+
     public ShoppingItemResponse patchShoppingItem(long userId, long shoppingItemId, Boolean checked) {
         if (checked != null) {
             jdbcTemplate.update("""
@@ -275,6 +280,11 @@ public class AppFeatureRepository {
         );
         Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         return findNutritionLog(userId, id == null ? 0 : id);
+    }
+
+    public void deleteNutritionLog(long userId, long nutritionLogId) {
+        jdbcTemplate.update("DELETE FROM nutrition_logs WHERE user_id = ? AND nutrition_log_id = ?",
+                userId, nutritionLogId);
     }
 
     public List<NutritionLogResponse> findNutritionLogs(long userId, LocalDate date) {
@@ -343,6 +353,11 @@ public class AppFeatureRepository {
                 nutrition.protein(), nutrition.fat(), nutrition.sodium());
         Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         return new CustomFoodResponse(id == null ? 0 : id, request.name(), nutrition);
+    }
+
+    public void deleteCustomFood(long userId, long customFoodId) {
+        jdbcTemplate.update("DELETE FROM custom_foods WHERE user_id = ? AND custom_food_id = ?",
+                userId, customFoodId);
     }
 
     private NutritionLogResponse findNutritionLog(long userId, long logId) {
