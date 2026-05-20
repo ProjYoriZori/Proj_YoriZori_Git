@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -9,11 +10,13 @@ import {
   Text,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import {
   Card,
+  Chip,
   EmptyState,
   Field,
   IconButton,
@@ -22,6 +25,7 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
+import { api } from "../api/client";
 import { colors, globalStyles } from "../theme";
 import {
   addDays,
@@ -121,32 +125,179 @@ function MealLog({ log, onDelete }) {
   );
 }
 
-function AddFoodModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
+const MEAL_TYPES = ["아침", "점심", "저녁", "간식"];
+
+function MealTypePickerModal({ food, onClose, onConfirm, bottomInset = 0 }) {
+  const [mealType, setMealType] = useState("점심");
+
+  return (
+    <Modal visible={!!food} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.sheet, { paddingBottom: 28 + bottomInset }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.modalTitle}>식사 시간 선택</Text>
+          <Text style={styles.mealPickerSub}>{food?.name}</Text>
+          <View style={styles.mealTypeRow}>
+            {MEAL_TYPES.map((type) => (
+              <Chip
+                key={type}
+                label={type}
+                active={mealType === type}
+                onPress={() => setMealType(type)}
+              />
+            ))}
+          </View>
+          <PrimaryButton
+            label="기록하기"
+            icon="check"
+            onPress={() => { onConfirm(food, mealType); onClose(); }}
+            style={{ marginTop: 8 }}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const EMPTY_FORM = {
+  name: "",
+  servingSize: "",
+  calories: "",
+  carbs: "",
+  protein: "",
+  fat: "",
+  sodium: "",
+};
+
+function EditFoodModal({ food, onClose, onSave, onDelete, bottomInset = 0 }) {
   const [form, setForm] = useState({
-    name: "",
-    servingSize: "",
-    calories: "",
-    carbs: "",
-    protein: "",
-    fat: "",
-    sodium: "",
+    name: "", servingSize: "", calories: "", carbs: "", protein: "", fat: "", sodium: "",
   });
+  const set = (key, value) => setForm((cur) => ({ ...cur, [key]: value }));
+
+  React.useEffect(() => {
+    if (food) {
+      setForm({
+        name: food.name || "",
+        servingSize: food.servingSize || "",
+        calories: food.calories != null ? String(food.calories) : "",
+        carbs: food.carbs != null ? String(food.carbs) : "",
+        protein: food.protein != null ? String(food.protein) : "",
+        fat: food.fat != null ? String(food.fat) : "",
+        sodium: food.sodium != null ? String(food.sodium) : "",
+      });
+    }
+  }, [food]);
+
+  const save = async () => {
+    if (!form.name.trim()) return;
+    await onSave(food.id, form);
+    onClose();
+  };
+
+  const remove = async () => {
+    await onDelete(food.id);
+    onClose();
+  };
+
+  return (
+    <Modal visible={!!food} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <Pressable style={[styles.sheet, { paddingBottom: 28 + bottomInset }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={[styles.modalTitle, { marginBottom: 16 }]}>음식 수정</Text>
+            <View style={styles.formGap}>
+              <Field value={form.name} onChangeText={(v) => set("name", v)} placeholder="음식명" />
+              <Field value={form.servingSize} onChangeText={(v) => set("servingSize", v)} placeholder="1회 제공량: 300ml, 1개..." />
+              <View style={styles.formRow}>
+                <View style={styles.labeledField}>
+                  <Field value={form.calories} onChangeText={(v) => set("calories", v)} placeholder="0" keyboardType="decimal-pad" />
+                  <Text style={styles.fieldLabel}>칼로리 (kcal)</Text>
+                </View>
+                <View style={styles.labeledField}>
+                  <Field value={form.carbs} onChangeText={(v) => set("carbs", v)} placeholder="0" keyboardType="decimal-pad" />
+                  <Text style={styles.fieldLabel}>탄수화물 (g)</Text>
+                </View>
+              </View>
+              <View style={styles.formRow}>
+                <View style={styles.labeledField}>
+                  <Field value={form.protein} onChangeText={(v) => set("protein", v)} placeholder="0" keyboardType="decimal-pad" />
+                  <Text style={styles.fieldLabel}>단백질 (g)</Text>
+                </View>
+                <View style={styles.labeledField}>
+                  <Field value={form.fat} onChangeText={(v) => set("fat", v)} placeholder="0" keyboardType="decimal-pad" />
+                  <Text style={styles.fieldLabel}>지방 (g)</Text>
+                </View>
+                <View style={styles.labeledField}>
+                  <Field value={form.sodium} onChangeText={(v) => set("sodium", v)} placeholder="0" keyboardType="decimal-pad" />
+                  <Text style={styles.fieldLabel}>나트륨 (mg)</Text>
+                </View>
+              </View>
+              <PrimaryButton label="저장하기" icon="check" onPress={save} disabled={!form.name.trim()} />
+              <Pressable style={styles.deleteBtn} onPress={remove}>
+                <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
+                <Text style={styles.deleteBtnText}>삭제하기</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+function AddFoodModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMessage, setOcrMessage] = useState("");
   const set = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
 
   const submit = async () => {
     if (!form.name.trim()) return;
     await onSubmit(form);
-    setForm({
-      name: "",
-      servingSize: "",
-      calories: "",
-      carbs: "",
-      protein: "",
-      fat: "",
-      sodium: "",
-    });
+    setForm(EMPTY_FORM);
+    setOcrMessage("");
     onClose();
+  };
+
+  const handleCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      setOcrMessage("카메라 권한이 필요해요.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: "Images",
+      quality: 0.85,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+
+    setOcrLoading(true);
+    setOcrMessage("");
+    try {
+      const asset = result.assets[0];
+      const data = await api.extractNutritionFromImage({
+        imageBase64: asset.base64,
+        mediaType: asset.mimeType || "image/jpeg",
+      });
+      setForm((prev) => ({
+        name: data.name || prev.name,
+        servingSize: data.servingSize || prev.servingSize,
+        calories: data.calories != null ? String(data.calories) : prev.calories,
+        carbs: data.carbs != null ? String(data.carbs) : prev.carbs,
+        protein: data.protein != null ? String(data.protein) : prev.protein,
+        fat: data.fat != null ? String(data.fat) : prev.fat,
+        sodium: data.sodium != null ? String(data.sodium) : prev.sodium,
+      }));
+      setOcrMessage(data.message || "");
+    } catch {
+      setOcrMessage("인식에 실패했어요. 직접 입력해주세요.");
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   return (
@@ -160,7 +311,26 @@ function AddFoodModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.sheet, { paddingBottom: 28 + bottomInset }]}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.modalTitle}>자주 먹는 음식 추가</Text>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>자주 먹는 음식 추가</Text>
+            <Pressable
+              style={[styles.cameraBtn, ocrLoading && styles.cameraBtnDisabled]}
+              onPress={handleCamera}
+              disabled={ocrLoading}
+            >
+              {ocrLoading ? (
+                <ActivityIndicator size="small" color={colors.surface} />
+              ) : (
+                <MaterialCommunityIcons name="camera" size={20} color={colors.surface} />
+              )}
+              <Text style={styles.cameraBtnText}>
+                {ocrLoading ? "인식 중..." : "사진 인식"}
+              </Text>
+            </Pressable>
+          </View>
+          {ocrMessage ? (
+            <Text style={styles.ocrMessage}>{ocrMessage}</Text>
+          ) : null}
           <View style={styles.formGap}>
             <Field
               value={form.name}
@@ -173,43 +343,53 @@ function AddFoodModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
               placeholder="1회 제공량: 300ml, 1개..."
             />
             <View style={styles.formRow}>
-              <Field
-                value={form.calories}
-                onChangeText={(value) => set("calories", value)}
-                placeholder="kcal"
-                keyboardType="decimal-pad"
-                style={{ flex: 1 }}
-              />
-              <Field
-                value={form.carbs}
-                onChangeText={(value) => set("carbs", value)}
-                placeholder="탄수 g"
-                keyboardType="decimal-pad"
-                style={{ flex: 1 }}
-              />
+              <View style={styles.labeledField}>
+                <Field
+                  value={form.calories}
+                  onChangeText={(value) => set("calories", value)}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.fieldLabel}>칼로리 (kcal)</Text>
+              </View>
+              <View style={styles.labeledField}>
+                <Field
+                  value={form.carbs}
+                  onChangeText={(value) => set("carbs", value)}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.fieldLabel}>탄수화물 (g)</Text>
+              </View>
             </View>
             <View style={styles.formRow}>
-              <Field
-                value={form.protein}
-                onChangeText={(value) => set("protein", value)}
-                placeholder="단백 g"
-                keyboardType="decimal-pad"
-                style={{ flex: 1 }}
-              />
-              <Field
-                value={form.fat}
-                onChangeText={(value) => set("fat", value)}
-                placeholder="지방 g"
-                keyboardType="decimal-pad"
-                style={{ flex: 1 }}
-              />
-              <Field
-                value={form.sodium}
-                onChangeText={(value) => set("sodium", value)}
-                placeholder="Na mg"
-                keyboardType="decimal-pad"
-                style={{ flex: 1 }}
-              />
+              <View style={styles.labeledField}>
+                <Field
+                  value={form.protein}
+                  onChangeText={(value) => set("protein", value)}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.fieldLabel}>단백질 (g)</Text>
+              </View>
+              <View style={styles.labeledField}>
+                <Field
+                  value={form.fat}
+                  onChangeText={(value) => set("fat", value)}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.fieldLabel}>지방 (g)</Text>
+              </View>
+              <View style={styles.labeledField}>
+                <Field
+                  value={form.sodium}
+                  onChangeText={(value) => set("sodium", value)}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.fieldLabel}>나트륨 (mg)</Text>
+              </View>
             </View>
             <PrimaryButton
               label="추가하기"
@@ -239,6 +419,8 @@ export default function NutritionScreen() {
   } = useAppData();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [foodModalVisible, setFoodModalVisible] = useState(false);
+  const [editingFood, setEditingFood] = useState(null);
+  const [mealPickerFood, setMealPickerFood] = useState(null);
   const selectedKey = dateKey(selectedDate);
   const logs = nutritionLogs.filter((log) => log.date === selectedKey);
   const totals = useMemo(() => sumNutrition(logs), [logs]);
@@ -360,14 +542,13 @@ export default function NutritionScreen() {
                   icon="playlist-plus"
                   size={36}
                   color={colors.primaryDark}
-                  onPress={() => addNutritionLogFromCustomFood(food)}
+                  onPress={() => setMealPickerFood(food)}
                 />
                 <IconButton
-                  icon="trash-can-outline"
+                  icon="pencil-outline"
                   size={36}
-                  color={colors.danger}
-                  backgroundColor="#fff0ef"
-                  onPress={() => deleteCustomFood(food.id)}
+                  color={colors.textSoft}
+                  onPress={() => setEditingFood(food)}
                 />
               </View>
             ))
@@ -415,6 +596,22 @@ export default function NutritionScreen() {
         visible={foodModalVisible}
         onClose={() => setFoodModalVisible(false)}
         onSubmit={addCustomFood}
+        bottomInset={insets.bottom}
+      />
+      <MealTypePickerModal
+        food={mealPickerFood}
+        onClose={() => setMealPickerFood(null)}
+        onConfirm={(food, mealType) => addNutritionLogFromCustomFood(food, mealType)}
+        bottomInset={insets.bottom}
+      />
+      <EditFoodModal
+        food={editingFood}
+        onClose={() => setEditingFood(null)}
+        onSave={async (id, form) => {
+          await deleteCustomFood(id);
+          await addCustomFood(form);
+        }}
+        onDelete={deleteCustomFood}
         bottomInset={insets.bottom}
       />
     </SafeAreaView>
@@ -482,6 +679,16 @@ const styles = StyleSheet.create({
   formRow: {
     flexDirection: "row",
     gap: 10,
+  },
+  labeledField: {
+    flex: 1,
+    gap: 4,
+  },
+  fieldLabel: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
   },
   progressRow: {
     paddingVertical: 10,
@@ -571,6 +778,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 2,
   },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  cameraBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primaryDark,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  cameraBtnDisabled: {
+    opacity: 0.6,
+  },
+  cameraBtnText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  ocrMessage: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 10,
+    backgroundColor: colors.surfaceAlt,
+    padding: 10,
+    borderRadius: 8,
+  },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(20,35,27,0.42)",
@@ -595,6 +834,32 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 21,
     fontWeight: "900",
-    marginBottom: 14,
+  },
+  mealPickerSub: {
+    color: colors.textSoft,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  mealTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 4,
+  },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  deleteBtnText: {
+    color: colors.danger,
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

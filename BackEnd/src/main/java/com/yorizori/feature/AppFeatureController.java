@@ -15,6 +15,8 @@ import com.yorizori.feature.FeatureDtos.NutritionLogRequest;
 import com.yorizori.feature.FeatureDtos.NutritionLogResponse;
 import com.yorizori.feature.FeatureDtos.OcrIngredientRequest;
 import com.yorizori.feature.FeatureDtos.OcrIngredientResponse;
+import com.yorizori.feature.FeatureDtos.OcrNutritionRequest;
+import com.yorizori.feature.FeatureDtos.OcrNutritionResponse;
 import com.yorizori.feature.FeatureDtos.PantryItemRequest;
 import com.yorizori.feature.FeatureDtos.PantryItemResponse;
 import com.yorizori.feature.FeatureDtos.ProfileUpdateRequest;
@@ -217,6 +219,11 @@ public class AppFeatureController {
     @PostMapping("/ocr/ingredients")
     public ResponseEntity<OcrIngredientResponse> ocrIngredients(@RequestBody OcrIngredientRequest ocrRequest) {
         return ResponseEntity.ok(service.extractIngredients(ocrRequest));
+    }
+
+    @PostMapping("/ocr/nutrition")
+    public ResponseEntity<OcrNutritionResponse> ocrNutrition(@RequestBody OcrNutritionRequest req) {
+        return ResponseEntity.ok(service.extractNutrition(req));
     }
 
     @PostMapping("/barcode/lookup")

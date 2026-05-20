@@ -72,12 +72,13 @@ public class AppFeatureRepository {
 
     public List<PantryItemResponse> findPantryItems(long userId) {
         return jdbcTemplate.query("""
-                SELECT pantry_item_id, name, quantity_text, expires_at, memo
+                SELECT pantry_item_id, name, category, quantity_text, expires_at, memo
                   FROM pantry_items
                  WHERE user_id = ?
                  ORDER BY expires_at IS NULL, expires_at ASC, pantry_item_id DESC
                 """, (rs, rowNum) -> toPantryItem(rs.getLong("pantry_item_id"),
                 rs.getString("name"),
+                rs.getString("category"),
                 rs.getString("quantity_text"),
                 rs.getObject("expires_at", LocalDate.class),
                 rs.getString("memo")), userId);
@@ -86,15 +87,16 @@ public class AppFeatureRepository {
     public PantryItemResponse addPantryItem(long userId, FeatureDtos.PantryItemRequest request) {
         String name = required(request.name(), "Ingredient name");
         jdbcTemplate.update("""
-                INSERT INTO pantry_items (user_id, name, normalized_name, quantity_text, expires_at, memo)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO pantry_items (user_id, name, normalized_name, category, quantity_text, expires_at, memo)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     name = VALUES(name),
+                    category = COALESCE(VALUES(category), category),
                     quantity_text = COALESCE(VALUES(quantity_text), quantity_text),
                     expires_at = COALESCE(VALUES(expires_at), expires_at),
                     memo = COALESCE(VALUES(memo), memo)
-                """, userId, name, normalize(name), blankToNull(request.quantityText()), request.expiresAt(),
-                blankToNull(request.memo()));
+                """, userId, name, normalize(name), blankToNull(request.category()), blankToNull(request.quantityText()),
+                request.expiresAt(), blankToNull(request.memo()));
         return findPantryItemByName(userId, name);
     }
 
@@ -103,6 +105,7 @@ public class AppFeatureRepository {
                 UPDATE pantry_items
                    SET name = COALESCE(?, name),
                        normalized_name = COALESCE(?, normalized_name),
+                       category = COALESCE(?, category),
                        quantity_text = COALESCE(?, quantity_text),
                        expires_at = COALESCE(?, expires_at),
                        memo = COALESCE(?, memo)
@@ -110,6 +113,7 @@ public class AppFeatureRepository {
                 """,
                 blankToNull(request.name()),
                 request.name() == null ? null : normalize(request.name()),
+                blankToNull(request.category()),
                 blankToNull(request.quantityText()),
                 request.expiresAt(),
                 blankToNull(request.memo()),
@@ -236,7 +240,7 @@ public class AppFeatureRepository {
                           FROM shopping_items
                          WHERE user_id = ? AND shopping_item_id = ?
                         """, String.class, userId, shoppingItemId);
-                addPantryItem(userId, new FeatureDtos.PantryItemRequest(name, null, null, "shopping-complete"));
+                addPantryItem(userId, new FeatureDtos.PantryItemRequest(name, null, null, null, "shopping-complete"));
             }
         }
         return jdbcTemplate.queryForObject("""
@@ -329,13 +333,14 @@ public class AppFeatureRepository {
 
     public List<CustomFoodResponse> findCustomFoods(long userId) {
         return jdbcTemplate.query("""
-                SELECT custom_food_id, name, kcal, carbohydrate_g, protein_g, fat_g, sodium_mg
+                SELECT custom_food_id, name, serving_size, kcal, carbohydrate_g, protein_g, fat_g, sodium_mg
                   FROM custom_foods
                  WHERE user_id = ?
                  ORDER BY custom_food_id DESC
                 """, (rs, rowNum) -> new CustomFoodResponse(
                 rs.getLong("custom_food_id"),
                 rs.getString("name"),
+                rs.getString("serving_size"),
                 new NutritionResponse(
                         toInt(rs.getBigDecimal("kcal")),
                         toDouble(rs.getBigDecimal("carbohydrate_g")),
@@ -350,12 +355,12 @@ public class AppFeatureRepository {
         NutritionResponse nutrition = request.nutrition() == null ? new NutritionResponse(0, 0, 0, 0, 0)
                 : request.nutrition();
         jdbcTemplate.update("""
-                INSERT INTO custom_foods (user_id, name, kcal, carbohydrate_g, protein_g, fat_g, sodium_mg)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, userId, required(request.name(), "Custom food name"), nutrition.kcal(), nutrition.carbs(),
-                nutrition.protein(), nutrition.fat(), nutrition.sodium());
+                INSERT INTO custom_foods (user_id, name, serving_size, kcal, carbohydrate_g, protein_g, fat_g, sodium_mg)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, userId, required(request.name(), "Custom food name"), blankToNull(request.servingSize()),
+                nutrition.kcal(), nutrition.carbs(), nutrition.protein(), nutrition.fat(), nutrition.sodium());
         Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        return new CustomFoodResponse(id == null ? 0 : id, request.name(), nutrition);
+        return new CustomFoodResponse(id == null ? 0 : id, request.name(), request.servingSize(), nutrition);
     }
 
     public void deleteCustomFood(long userId, long customFoodId) {
@@ -389,12 +394,13 @@ public class AppFeatureRepository {
 
     private PantryItemResponse findPantryItem(long userId, long itemId) {
         return jdbcTemplate.queryForObject("""
-                SELECT pantry_item_id, name, quantity_text, expires_at, memo
+                SELECT pantry_item_id, name, category, quantity_text, expires_at, memo
                   FROM pantry_items
                  WHERE user_id = ? AND pantry_item_id = ?
                 """, (rs, rowNum) -> toPantryItem(
                 rs.getLong("pantry_item_id"),
                 rs.getString("name"),
+                rs.getString("category"),
                 rs.getString("quantity_text"),
                 rs.getObject("expires_at", LocalDate.class),
                 rs.getString("memo")), userId, itemId);
@@ -402,20 +408,21 @@ public class AppFeatureRepository {
 
     private PantryItemResponse findPantryItemByName(long userId, String name) {
         return jdbcTemplate.queryForObject("""
-                SELECT pantry_item_id, name, quantity_text, expires_at, memo
+                SELECT pantry_item_id, name, category, quantity_text, expires_at, memo
                   FROM pantry_items
                  WHERE user_id = ? AND normalized_name = ?
                 """, (rs, rowNum) -> toPantryItem(
                 rs.getLong("pantry_item_id"),
                 rs.getString("name"),
+                rs.getString("category"),
                 rs.getString("quantity_text"),
                 rs.getObject("expires_at", LocalDate.class),
                 rs.getString("memo")), userId, normalize(name));
     }
 
-    private PantryItemResponse toPantryItem(long id, String name, String quantityText, LocalDate expiresAt, String memo) {
+    private PantryItemResponse toPantryItem(long id, String name, String category, String quantityText, LocalDate expiresAt, String memo) {
         long expiresInDays = expiresAt == null ? Long.MAX_VALUE : ChronoUnit.DAYS.between(LocalDate.now(), expiresAt);
-        return new PantryItemResponse(id, name, quantityText, expiresAt, memo, expiresInDays, expiresInDays <= 3);
+        return new PantryItemResponse(id, name, category, quantityText, expiresAt, memo, expiresInDays, expiresInDays <= 3);
     }
 
     private static BigDecimal multiply(double value, BigDecimal multiplier) {

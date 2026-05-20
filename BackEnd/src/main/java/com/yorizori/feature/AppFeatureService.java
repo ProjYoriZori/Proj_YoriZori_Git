@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class AppFeatureService {
 
     private static final Pattern KOREAN_WORD = Pattern.compile("[가-힣A-Za-z0-9]{2,}");
+
+    @Value("${GOOGLE_VISION_API_KEY:}")
+    private String googleVisionApiKey;
 
     private final AppFeatureRepository repository;
     private final RecipeQueryRepository recipeQueryRepository;
@@ -196,6 +200,162 @@ public class AppFeatureService {
                 ? "OCR engine integration is pending. Send recognized text to parse ingredients."
                 : "Parsed candidate ingredients from recognized text.";
         return new FeatureDtos.OcrIngredientResponse(ingredients, rawText, message);
+    }
+
+    public FeatureDtos.OcrNutritionResponse extractNutrition(FeatureDtos.OcrNutritionRequest request) {
+        String apiKey = googleVisionApiKey;
+        if (apiKey == null || apiKey.isBlank()) {
+            return new FeatureDtos.OcrNutritionResponse(null, null, null, null, null, null, null, "",
+                    "GOOGLE_VISION_API_KEY not configured.");
+        }
+        if (request.imageBase64() == null || request.imageBase64().isBlank()) {
+            return new FeatureDtos.OcrNutritionResponse(null, null, null, null, null, null, null, "",
+                    "imageBase64 is required.");
+        }
+
+        String rawText = callGoogleVision(request.imageBase64(), request.mediaType(), apiKey);
+        return parseNutritionLabel(rawText);
+    }
+
+    private String callGoogleVision(String imageBase64, String mediaType, String apiKey) {
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            String url = "https://vision.googleapis.com/v1/images:annotate?key=" + apiKey;
+
+            String mimeType = (mediaType != null && !mediaType.isBlank()) ? mediaType : "image/jpeg";
+            String body = String.format("""
+                    {"requests":[{"image":{"content":"%s"},"features":[{"type":"TEXT_DETECTION","maxResults":1}],"imageContext":{"languageHints":["ko"]}}]}
+                    """, imageBase64).strip();
+            // mimeType은 Vision API의 content 방식에선 불필요하나 참고용으로 변수 유지
+
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(body, headers);
+
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> response = restTemplate.postForObject(url, entity, java.util.Map.class);
+            if (response == null) return "";
+
+            @SuppressWarnings("unchecked")
+            java.util.List<java.util.Map<String, Object>> responses =
+                    (java.util.List<java.util.Map<String, Object>>) response.get("responses");
+            if (responses == null || responses.isEmpty()) return "";
+
+            @SuppressWarnings("unchecked")
+            java.util.List<java.util.Map<String, Object>> annotations =
+                    (java.util.List<java.util.Map<String, Object>>) responses.get(0).get("textAnnotations");
+            if (annotations == null || annotations.isEmpty()) return "";
+
+            return String.valueOf(annotations.get(0).getOrDefault("description", ""));
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static final Pattern NUM = Pattern.compile("(\\d+(?:[.,]\\d+)?)");
+
+    private FeatureDtos.OcrNutritionResponse parseNutritionLabel(String text) {
+        if (text == null || text.isBlank()) {
+            return new FeatureDtos.OcrNutritionResponse(null, null, null, null, null, null, null, text,
+                    "OCR 텍스트를 인식하지 못했어요. 더 밝은 환경에서 다시 시도해보세요.");
+        }
+
+        String[] lines = text.split("[\r\n]+");
+
+        String name = null;
+        String servingSize = extractServingSize(text);
+        Double calories = extractCalories(text);
+        Double carbs = correctGMisread(extractValue(text, "탄수화물", "탄수", "carbohydrate"), 300.0);
+        Double protein = correctGMisread(extractValue(text, "단백질", "protein"), 150.0);
+        Double fat = correctGMisread(extractValue(text, "지방", "fat"), 150.0);
+        Double sodium = extractValue(text, "나트륨", "sodium");
+
+        String message = (calories != null || carbs != null || protein != null)
+                ? "영양성분을 인식했어요. 확인 후 저장하세요."
+                : "영양성분을 찾지 못했어요. 직접 입력하거나 다시 촬영해보세요.";
+
+        return new FeatureDtos.OcrNutritionResponse(name, servingSize, calories, carbs, protein, fat, sodium, text, message);
+    }
+
+    private String extractProductName(String[] lines) {
+        // 영양성분 표 위쪽 첫 번째 한글 라인을 제품명으로 추정
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.length() >= 2
+                    && trimmed.matches(".*[가-힣].*")
+                    && !trimmed.matches(".*(영양성분|1회|제공량|열량|탄수|단백|지방|나트륨|당류|포화|트랜스|콜레스테롤).*")) {
+                return trimmed;
+            }
+        }
+        return null;
+    }
+
+    private String extractServingSize(String text) {
+        // "1회 제공량 200ml", "1회제공량 : 30g" 등
+        java.util.regex.Matcher m = Pattern.compile(
+                "1회\\s*제공량\\s*[:\\-]?\\s*([\\d.,]+\\s*(?:g|ml|mL|kg|L|개|봉|컵|인분))",
+                Pattern.CASE_INSENSITIVE).matcher(text);
+        if (m.find()) return m.group(1).trim();
+        // "총 내용량 500g" 등 fallback
+        m = Pattern.compile("(?:총\\s*)?내용량\\s*[:\\-]?\\s*([\\d.,]+\\s*(?:g|ml|mL|kg|L))").matcher(text);
+        if (m.find()) return m.group(1).trim();
+        return null;
+    }
+
+    // 1,760 같은 천 단위 쉼표는 제거, 소수점 쉼표(1,5)는 점으로 변환
+    private static double parseNumber(String raw) {
+        String s = raw.trim();
+        s = s.replaceAll("(\\d),(\\d{3})(?!\\d)", "$1$2"); // 천 단위 쉼표 제거
+        s = s.replace(",", ".");                             // 나머지 쉼표 → 소수점
+        return Double.parseDouble(s);
+    }
+
+    // OCR이 g를 9로 읽어 숫자 끝에 붙이는 경우 보정 (예: 79g → 799 → 79)
+    private static Double correctGMisread(Double value, double maxReasonable) {
+        if (value == null || value <= maxReasonable) return value;
+        String s = String.valueOf(value.longValue());
+        if (s.length() > 1 && s.endsWith("9")) {
+            double corrected = Double.parseDouble(s.substring(0, s.length() - 1));
+            if (corrected <= maxReasonable) return corrected;
+        }
+        return value;
+    }
+
+    private Double extractCalories(String text) {
+        // 1순위: "열량" / "칼로리" 키워드 뒤 숫자 — % 숫자 제외
+        for (String kw : new String[]{"열량", "칼로리"}) {
+            java.util.regex.Matcher m = Pattern.compile(
+                    kw + "[^\\n\\r]{0,10}?([\\d,]+(?:\\.[\\d]+)?)(?!\\s*%)",
+                    Pattern.UNICODE_CASE).matcher(text);
+            if (m.find()) {
+                try { return parseNumber(m.group(1)); }
+                catch (NumberFormatException ignored) {}
+            }
+        }
+        // 2순위: 숫자 뒤 kcal 단위 (300 kcal, 300kcal)
+        java.util.regex.Matcher m = Pattern.compile(
+                "([\\d,]+(?:\\.[\\d]+)?)\\s*(?:kcal|Kcal|KCAL)",
+                Pattern.CASE_INSENSITIVE).matcher(text);
+        if (m.find()) {
+            try { return parseNumber(m.group(1)); }
+            catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private Double extractValue(String text, String... keywords) {
+        for (String keyword : keywords) {
+            // 키워드 바로 옆(10자 이내) 숫자 우선, % 뒤 숫자 제외
+            // 회전된 이미지에서도 정답은 키워드 바로 옆에 있고, 퍼센트는 그보다 멀리 있음
+            java.util.regex.Matcher m = Pattern.compile(
+                    keyword + "[^\\n\\r]{0,10}?([\\d,]+(?:\\.[\\d]+)?)(?!\\s*%)",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(text);
+            if (m.find()) {
+                try { return parseNumber(m.group(1)); }
+                catch (NumberFormatException ignored) {}
+            }
+        }
+        return null;
     }
 
     public FeatureDtos.BarcodeLookupResponse lookupBarcode(FeatureDtos.BarcodeLookupRequest request) {

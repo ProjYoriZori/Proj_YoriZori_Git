@@ -381,6 +381,7 @@ export function normalizeCustomFood(raw) {
 function toPantryRequest(body = {}) {
   return {
     name: body.name || body.ingredient_name || body.ingredientName,
+    category: body.category || null,
     quantityText:
       [body.quantity, body.unit].filter(Boolean).join(" ") ||
       body.quantityText ||
@@ -442,6 +443,7 @@ function toFavoriteRequest(body = {}) {
 function toCustomFoodRequest(food = {}) {
   return {
     name: food.name || food.food_name || food.foodName,
+    servingSize: food.servingSize || food.serving_size || null,
     nutrition: {
       kcal: Number(food.calorie_kcal || food.calories || 0),
       carbs: Number(food.carbohydrate_g || food.carbs || 0),
@@ -626,6 +628,8 @@ export const api = {
     }),
   extractIngredientsFromImage: (body) =>
     request(ENDPOINTS.ocrIngredients, { method: "POST", body }),
+  extractNutritionFromImage: (body) =>
+    request("/ocr/nutrition", { method: "POST", body }),
   lookupBarcode: (body) =>
     request(ENDPOINTS.barcodeLookup, { method: "POST", body }),
   createCustomFood: (body) =>

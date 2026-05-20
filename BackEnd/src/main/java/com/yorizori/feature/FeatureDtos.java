@@ -24,12 +24,13 @@ public final class FeatureDtos {
     ) {
     }
 
-    public record PantryItemRequest(String name, String quantityText, LocalDate expiresAt, String memo) {
+    public record PantryItemRequest(String name, String category, String quantityText, LocalDate expiresAt, String memo) {
     }
 
     public record PantryItemResponse(
             long id,
             String name,
+            String category,
             String quantityText,
             LocalDate expiresAt,
             String memo,
@@ -102,16 +103,32 @@ public final class FeatureDtos {
     public record OcrIngredientResponse(List<String> ingredients, String rawText, String message) {
     }
 
+    public record OcrNutritionRequest(String imageBase64, String mediaType) {
+    }
+
+    public record OcrNutritionResponse(
+            String name,
+            String servingSize,
+            Double calories,
+            Double carbs,
+            Double protein,
+            Double fat,
+            Double sodium,
+            String rawText,
+            String message
+    ) {
+    }
+
     public record BarcodeLookupRequest(String barcode) {
     }
 
     public record BarcodeLookupResponse(String barcode, String productName, NutritionResponse nutrition, String message) {
     }
 
-    public record CustomFoodRequest(String name, NutritionResponse nutrition) {
+    public record CustomFoodRequest(String name, String servingSize, NutritionResponse nutrition) {
     }
 
-    public record CustomFoodResponse(long id, String name, NutritionResponse nutrition) {
+    public record CustomFoodResponse(long id, String name, String servingSize, NutritionResponse nutrition) {
     }
 
     public record MeResponse(UserProfileResponse profile) {

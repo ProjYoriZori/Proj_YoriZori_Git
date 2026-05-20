@@ -49,6 +49,7 @@ public class SchemaMigrationRunner implements ApplicationRunner {
         ensureColumn("pantry_items", "normalized_name", "VARCHAR(120) NOT NULL");
         ensureColumn("pantry_items", "quantity_text", "VARCHAR(120) NULL");
         ensureColumn("pantry_items", "expires_at", "DATE NULL");
+        ensureColumn("pantry_items", "category", "VARCHAR(60) NULL");
         ensureColumn("pantry_items", "memo", "VARCHAR(500) NULL");
         ensureColumn("pantry_items", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
         ensureColumn("pantry_items", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
@@ -87,6 +88,7 @@ public class SchemaMigrationRunner implements ApplicationRunner {
         renameColumnIfNeeded("custom_foods", "food_name", "name", "VARCHAR(255) NOT NULL");
         renameColumnIfNeeded("custom_foods", "calorie_kcal", "kcal", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         ensureColumn("custom_foods", "name", "VARCHAR(255) NOT NULL");
+        ensureColumn("custom_foods", "serving_size", "VARCHAR(60) NULL");
         ensureColumn("custom_foods", "kcal", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         ensureColumn("custom_foods", "carbohydrate_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         ensureColumn("custom_foods", "protein_g", "DECIMAL(10,2) NOT NULL DEFAULT 0");
@@ -131,6 +133,7 @@ public class SchemaMigrationRunner implements ApplicationRunner {
                     name VARCHAR(120) NOT NULL,
                     normalized_name VARCHAR(120) NOT NULL,
                     quantity_text VARCHAR(120) NULL,
+                    category VARCHAR(60) NULL,
                     expires_at DATE NULL,
                     memo VARCHAR(500) NULL,
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -219,6 +222,7 @@ public class SchemaMigrationRunner implements ApplicationRunner {
                     custom_food_id BIGINT NOT NULL AUTO_INCREMENT,
                     user_id BIGINT NOT NULL,
                     name VARCHAR(255) NOT NULL,
+                    serving_size VARCHAR(60) NULL,
                     kcal DECIMAL(10,2) NOT NULL DEFAULT 0,
                     carbohydrate_g DECIMAL(10,2) NOT NULL DEFAULT 0,
                     protein_g DECIMAL(10,2) NOT NULL DEFAULT 0,

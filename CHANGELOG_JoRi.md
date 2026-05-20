@@ -251,3 +251,176 @@
 | `FrontEnd/src/screens/NutritionScreen.js` | 수정 |
 | `FrontEnd/src/screens/ShoppingScreen.js` | 수정 |
 | `FrontEnd/src/theme.js` | 수정 |
+| `BackEnd/.../SchemaMigrationRunner.java` | 수정 (category 컬럼 추가) |
+| `BackEnd/.../FeatureDtos.java` | 수정 (category 필드 추가) |
+| `BackEnd/.../AppFeatureRepository.java` | 수정 (category 쿼리 반영) |
+| `FrontEnd/src/api/client.js` | 수정 (category 전송 추가) |
+
+---
+
+## 15. 냉장고 카테고리 저장 버그 수정
+
+### 원인
+- `client.js`의 `toPantryRequest` 함수에 `category` 필드가 누락 → 서버에 카테고리 미전송
+- 백엔드 `PantryItemRequest` / `PantryItemResponse` DTO에 `category` 없음
+- DB `pantry_items` 테이블에 `category` 컬럼 없음
+- 결과: 카테고리 선택과 무관하게 항상 "기타"로 저장
+
+### 수정 내용
+
+**BackEnd**
+- `SchemaMigrationRunner.java`: `pantry_items` CREATE TABLE에 `category VARCHAR(60) NULL` 추가, `ensureColumn` 호출 추가 (기존 DB 자동 마이그레이션)
+- `FeatureDtos.java`: `PantryItemRequest`, `PantryItemResponse` 레코드에 `category` 필드 추가
+- `AppFeatureRepository.java`: 모든 SELECT/INSERT/UPDATE 쿼리에 `category` 반영, `toPantryItem` 헬퍼 메서드 시그니처 업데이트
+
+**FrontEnd**
+- `client.js`: `toPantryRequest`에 `category: body.category || null` 추가
+
+---
+
+## 16. 냉장고 재료별 이모지 (FridgeScreen.js)
+
+### 변경 전
+- 카테고리 단위 이모지 (채소 전체 🥬, 육류 전체 🥩 등)
+
+### 변경 후
+- `ingredientEmoji` 객체: ~200개 재료명 → 이모지 exact match
+  - 채소: 양파🧅 마늘🧄 당근🥕 감자🥔 고구마🍠 브로콜리🥦 오이🥒 가지🍆 토마토🍅 파프리카🫑 등
+  - 과일: 사과🍎 바나나🍌 딸기🍓 포도🍇 레몬🍋 아보카도🥑 등
+  - 육류: 소고기/쇠고기🥩 돼지고기/삼겹살🥩 닭가슴살/닭다리🍗 베이컨/햄🥓
+  - 해산물: 새우🦐 오징어/낙지🦑 게/꽃게🦀 조개류🦪 생선류🐟 해조류🌊
+  - 유제품: 우유🥛 버터🧈 치즈🧀 요거트🥛
+  - 양념: 소금🧂 간장/된장/고추장🫙 올리브오일🫒 꿀🍯 설탕🍬 카레🍛 등
+- `getIngredientEmoji(name, category)` 함수: exact match → 키워드 패턴(20개) → 카테고리 fallback → 🍽️ 순으로 처리
+  - "버섯" 포함 → 🍄, "고추" 포함(장 제외) → 🌶️, "닭" 포함 → 🍗 등
+
+---
+
+## 17. 영양성분표 사진 인식 OCR (NutritionScreen.js)
+
+### 기능 개요
+- "자주 먹는 음식 추가" 모달에 **📷 사진 인식** 버튼 추가
+- 카메라로 식품 영양성분표 촬영 → Google Vision API OCR → 폼 자동 입력
+
+### 흐름
+```
+사진 인식 버튼 탭
+  → 카메라 권한 요청
+  → expo-image-picker 카메라 실행
+  → 촬영된 이미지 base64 변환
+  → POST /api/v1/ocr/nutrition
+  → Google Vision API 텍스트 추출
+  → 한국 영양성분표 패턴 파싱
+  → 음식명·1회제공량·kcal·탄수·단백·지방·나트륨 자동 입력
+  → 인식 결과 메시지 표시 (수정 후 저장 가능)
+```
+
+### 백엔드 (신규)
+
+- `FeatureDtos.java`: `OcrNutritionRequest(imageBase64, mediaType)`, `OcrNutritionResponse(name, servingSize, calories, carbs, protein, fat, sodium, rawText, message)` 추가
+- `AppFeatureController.java`: `POST /ocr/nutrition` 엔드포인트 추가
+- `AppFeatureService.java`:
+  - `extractNutrition()` — Google Vision API REST 호출 (languageHints: ko)
+  - `callGoogleVision()` — base64 이미지 → OCR 전문 텍스트 반환
+  - `parseNutritionLabel()` — 한국 영양성분표 정규식 파싱
+    - 열량/탄수화물/단백질/지방/나트륨 키워드 + 후행 숫자 추출
+    - 1회 제공량 `(\d+\s*(?:g|ml|...))` 패턴
+    - 제품명: 영양성분 관련 키워드 제외한 첫 번째 한글 라인
+- `BackEnd/.env`: `GOOGLE_VISION_API_KEY` 추가
+
+### 프론트엔드
+
+- `NutritionScreen.js`:
+  - `expo-image-picker` import, `ActivityIndicator` 추가
+  - `ocrLoading` / `ocrMessage` 상태 추가
+  - 모달 헤더를 row 레이아웃으로 변경 — 제목 좌측, 사진 인식 버튼 우측
+  - OCR 중 스피너 + "인식 중..." 텍스트 표시
+  - 인식 완료 시 결과 메시지 박스 표시
+  - `api.extractNutritionFromImage()` 호출 후 폼 자동 채우기 (기존 값 유지하며 덮어쓰기)
+- `client.js`: `extractNutritionFromImage(body)` 추가
+- `package.json`: `expo-image-picker` 설치
+
+### 파일 변경 목록
+
+| 파일 | 구분 |
+|------|------|
+| `BackEnd/.env` | 수정 (GOOGLE_VISION_API_KEY 추가) |
+| `BackEnd/.env.example` | 수정 |
+| `BackEnd/.../FeatureDtos.java` | 수정 |
+| `BackEnd/.../AppFeatureController.java` | 수정 |
+| `BackEnd/.../AppFeatureService.java` | 수정 |
+| `FrontEnd/package.json` | 수정 (expo-image-picker 추가) |
+| `FrontEnd/src/api/client.js` | 수정 |
+| `FrontEnd/src/screens/NutritionScreen.js` | 수정 |
+
+---
+
+## 18. OCR 파싱 개선 (AppFeatureService.java)
+
+### 칼로리 인식 실패 수정
+- 문제: `"300 kcal"` 형태(숫자 → 단위)를 못 잡음. 기존 파서는 `열량` 키워드 뒤 숫자만 탐색
+- 수정: `extractCalories()` 분리
+  - 1순위: `열량/칼로리` 키워드 뒤 숫자
+  - 2순위: `(\d+)\s*kcal` 역방향 패턴 추가 (햇반 등 상단 표기 형식)
+
+### 천 단위 쉼표 / g→9 OCR 오독 수정
+- 문제: `1,760mg` → 쉼표를 소수점으로 처리해 `1.76`으로 파싱
+- 문제: `79g` → OCR이 `g`를 `9`로 읽어 `799`로 파싱
+- 수정:
+  - `parseNumber()` 추가 — `\d,\d{3}` 패턴은 천 단위 쉼표로 인식해 제거, 나머지 쉼표만 소수점 변환
+  - `correctGMisread()` 추가 — 탄수·단백·지방이 기준치(300/150/150g) 초과 + 끝자리 `9`면 마지막 자리 제거
+
+### 회전 이미지 파싱 개선
+- 문제: 90° 회전 촬영 시 OCR 출력 순서가 바뀌어 키워드 뒤 엉뚱한 숫자(퍼센트 등) 캡처
+- 분석: 키워드 바로 옆 숫자가 정답, 퍼센트는 그보다 멀리 위치
+- 수정:
+  - 탐색 범위 `{0,20}` → `{0,10}` 축소
+  - `(?!\s*%)` 음수 전방탐색 추가 — `6%`, `11%` 등 퍼센트 숫자 스킵
+
+### 음식명 파싱 제거
+- 회전 이미지에서 포장 안내문이 제품명으로 잘못 인식되는 문제
+- `extractProductName()` 호출 제거 → 음식명 항상 빈 값으로 반환 (사용자가 직접 입력)
+
+---
+
+## 19. 자주 먹는 음식 개선 (NutritionScreen.js)
+
+### 필드 라벨 고정 표시
+- 숫자 입력 후 플레이스홀더가 사라져 어느 필드인지 구분 불가
+- 각 숫자 필드 아래 고정 라벨 추가: **칼로리 (kcal)** / **탄수화물 (g)** / **단백질 (g)** / **지방 (g)** / **나트륨 (mg)**
+- `labeledField` + `fieldLabel` 스타일 신규 추가
+
+### 1회 제공량 DB 저장 누락 수정
+- 문제: `serving_size` 컬럼이 DB에 없어 앱 재시작 시 사라짐
+- 수정:
+  - `SchemaMigrationRunner.java`: `custom_foods` 테이블에 `serving_size VARCHAR(60) NULL` 추가
+  - `FeatureDtos.java`: `CustomFoodRequest`, `CustomFoodResponse`에 `servingSize` 필드 추가
+  - `AppFeatureRepository.java`: INSERT/SELECT 쿼리에 `serving_size` 반영
+  - `client.js`: `toCustomFoodRequest`에 `servingSize` 추가
+
+### 수정 기능 추가 (삭제 버튼 이동)
+- 변경 전: 목록에 🗑️ 삭제 버튼 직접 노출
+- 변경 후: ✏️ 수정 버튼 → 수정 모달 내부에 삭제 버튼 배치
+- `EditFoodModal` 신규:
+  - 기존 값 미리 채워진 폼 (`useEffect`로 `food` prop 변경 시 갱신)
+  - **저장하기**: 기존 항목 삭제 후 새로 생성 (별도 PATCH 엔드포인트 없이 처리)
+  - **삭제하기**: 빨간 테두리 버튼 (모달 하단)
+
+### 식사 시간 선택 모달 추가
+- 변경 전: ▶ 버튼 탭 → "간식"으로 고정 기록
+- 변경 후: ▶ 버튼 탭 → 식사 시간 선택 시트 팝업
+- `MealTypePickerModal` 신규:
+  - 음식명 표시
+  - **아침 / 점심 / 저녁 / 간식** 칩 선택 (기본값: 점심)
+  - **기록하기** 버튼으로 선택한 식사 시간으로 영양 기록
+
+### 파일 변경 목록
+
+| 파일 | 구분 |
+|------|------|
+| `BackEnd/.../SchemaMigrationRunner.java` | 수정 |
+| `BackEnd/.../FeatureDtos.java` | 수정 |
+| `BackEnd/.../AppFeatureRepository.java` | 수정 |
+| `BackEnd/.../AppFeatureService.java` | 수정 |
+| `FrontEnd/src/api/client.js` | 수정 |
+| `FrontEnd/src/screens/NutritionScreen.js` | 수정 |
