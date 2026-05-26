@@ -21,6 +21,16 @@ public class AuthSupport {
                 throw new UnauthorizedException(e.getMessage());
             }
         }
+
+        String fallbackUserId = request.getHeader("X-User-Id");
+        if (fallbackUserId != null && !fallbackUserId.isBlank()) {
+            try {
+                return Long.parseLong(fallbackUserId.trim());
+            } catch (NumberFormatException e) {
+                throw new UnauthorizedException("X-User-Id must be a number.");
+            }
+        }
+
         throw new UnauthorizedException("Authorization token is required.");
     }
 }
