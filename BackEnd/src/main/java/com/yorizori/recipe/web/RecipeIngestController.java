@@ -2,7 +2,10 @@ package com.yorizori.recipe.web;
 
 import com.yorizori.recipe.service.RecipeIngestResult;
 import com.yorizori.recipe.service.RecipeIngestService;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,5 +27,16 @@ public class RecipeIngestController {
             @RequestParam(defaultValue = "100") int endIdx
     ) {
         return ResponseEntity.ok(recipeIngestService.ingestRecipes(startIdx, endIdx));
+    }
+
+    @PostMapping("/recipes/reparse")
+    public ResponseEntity<Map<String, Object>> reparseRecipes() {
+        long jobId = recipeIngestService.startReparseAsync();
+        return ResponseEntity.accepted().body(Map.of("jobId", jobId, "status", "RUNNING"));
+    }
+
+    @GetMapping("/jobs/{jobId}")
+    public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable long jobId) {
+        return ResponseEntity.ok(recipeIngestService.getJobStatus(jobId));
     }
 }

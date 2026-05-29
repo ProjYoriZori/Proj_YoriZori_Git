@@ -167,17 +167,17 @@ public class RecipeQueryRepository {
     private List<RecipeIngredientResponse> findIngredients(long recipeId) {
         String sql = """
                 SELECT ing.name,
-                       COALESCE(ri.amount_text, ri.original_name, ing.name) AS amount
+                       COALESCE(ri.amount_text, ri.original_name, ing.name) AS amount,
+                       ri.section
                   FROM recipe_ingredients ri
                   JOIN ingredients ing ON ing.ingredient_id = ri.ingredient_id
                  WHERE ri.recipe_id = ?
                  ORDER BY ri.sort_order, ri.recipe_ingredient_id
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RecipeIngredientResponse(
-            rs.getString("name"),
-            nullToEmpty(rs.getString("amount")),
-            "", // unit not parsed yet
-            ""  // note not parsed yet
+                rs.getString("name"),
+                nullToEmpty(rs.getString("amount")),
+                rs.getString("section")
         ), recipeId);
     }
 

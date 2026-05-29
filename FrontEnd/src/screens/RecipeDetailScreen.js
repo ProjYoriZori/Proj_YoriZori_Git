@@ -36,6 +36,12 @@ import { getMatchInfo } from "../utils/recipes";
 
 const mealTypes = ["아침", "점심", "저녁", "간식"];
 
+function extractAmountSuffix(name, amount) {
+  if (!amount || !name) return null;
+  const suffix = amount.startsWith(name) ? amount.slice(name.length).trim() : amount.trim();
+  return suffix || null;
+}
+
 function NutritionStat({ icon, label, value, unit, color }) {
   return (
     <View style={styles.nutritionStat}>
@@ -331,6 +337,24 @@ export default function RecipeDetailScreen({ navigation, route }) {
     [recipe, pantryItems],
   );
 
+  const matchedSet = useMemo(() => new Set(match.matched), [match.matched]);
+
+  const sectionedIngredients = useMemo(() => {
+    if (!recipe) return [];
+    const sections = [];
+    const sectionMap = new Map();
+    for (const ingredient of recipe.ingredients) {
+      const key = ingredient.section || "";
+      if (!sectionMap.has(key)) {
+        const group = { section: ingredient.section || null, ingredients: [] };
+        sectionMap.set(key, group);
+        sections.push(group);
+      }
+      sectionMap.get(key).ingredients.push(ingredient);
+    }
+    return sections;
+  }, [recipe]);
+
   if (!recipe) {
     return (
       <SafeAreaView style={globalStyles.screen}>
@@ -428,33 +452,29 @@ export default function RecipeDetailScreen({ navigation, route }) {
             title={`재료 ${recipe.ingredients.length}가지`}
             icon="food-apple-outline"
           />
-          {match.matched.length ? (
-            <View style={styles.ingredientSection}>
-              <Text style={styles.ingredientTitle}>내가 가진 재료</Text>
+          {sectionedIngredients.map(({ section, ingredients }) => (
+            <View key={section || "__none__"} style={styles.ingredientSection}>
+              {section ? (
+                <Text style={styles.ingredientTitle}>{section}</Text>
+              ) : null}
               <View style={styles.ingredientWrap}>
-                {match.matched.map((name) => (
-                  <Chip key={name} label={name} active icon="check" />
-                ))}
+                {ingredients.map((ingredient) => {
+                  const has = matchedSet.has(ingredient.name);
+                  const amountLabel = extractAmountSuffix(ingredient.name, ingredient.amount);
+                  return (
+                    <Chip
+                      key={ingredient.name}
+                      label={ingredient.name}
+                      amount={amountLabel}
+                      active={has}
+                      icon={has ? "check" : "basket-plus-outline"}
+                      tone={has ? undefined : "warning"}
+                    />
+                  );
+                })}
               </View>
             </View>
-          ) : null}
-          {match.missing.length ? (
-            <View style={styles.ingredientSection}>
-              <Text style={[styles.ingredientTitle, { color: colors.warning }]}>
-                부족한 재료
-              </Text>
-              <View style={styles.ingredientWrap}>
-                {match.missing.map((name) => (
-                  <Chip
-                    key={name}
-                    label={name}
-                    icon="basket-plus-outline"
-                    tone="warning"
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
+          ))}
         </Card>
 
         <Card>

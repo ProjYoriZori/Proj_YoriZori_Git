@@ -21,6 +21,7 @@ public class RecipeIngestRepository {
 
     private static final String SOURCE = "COOKRCP01";
     private static final String JOB_TYPE = "RECIPE_INGEST";
+    private static final String REPARSE_JOB_TYPE = "RECIPE_REPARSE";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -42,6 +43,37 @@ public class RecipeIngestRepository {
         return ingestJobId;
     }
 
+    public long createReparseJob() {
+        long ingestJobId = nextId("ingest_jobs", "ingest_job_id");
+        String sql = """
+                INSERT INTO ingest_jobs (
+                    ingest_job_id, source, job_type, job_status, request_endpoint,
+                    total_count, success_count, fail_count, started_at, created_at
+                )
+                VALUES (?, ?, ?, 'RUNNING', 'local://api_raw_responses', 0, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """;
+        jdbcTemplate.update(sql, ingestJobId, SOURCE, REPARSE_JOB_TYPE);
+        return ingestJobId;
+    }
+
+    public java.util.Map<String, Object> getJobStatus(long jobId) {
+        return jdbcTemplate.queryForMap(
+                "SELECT ingest_job_id, job_status, total_count, success_count, fail_count, error_message, started_at, finished_at FROM ingest_jobs WHERE ingest_job_id = ?",
+                jobId
+        );
+    }
+
+    public List<String> findAllRawResponseBodies() {
+        // response_hash 기준 중복 제거 — 동일 배치를 여러 번 수집했어도 한 번만 처리
+        return jdbcTemplate.queryForList(
+                "SELECT response_body FROM api_raw_responses WHERE source = ? AND raw_response_id IN (" +
+                "  SELECT MIN(raw_response_id) FROM api_raw_responses WHERE source = ? GROUP BY response_hash" +
+                ") ORDER BY raw_response_id",
+                String.class,
+                SOURCE, SOURCE
+        );
+    }
+
     public void saveRawResponse(long ingestJobId, String requestUrl, String responseBody, int statusCode) {
         long rawResponseId = nextId("api_raw_responses", "raw_response_id");
         String sql = """
@@ -60,6 +92,16 @@ public class RecipeIngestRepository {
                 responseBody,
                 sha256(responseBody)
         );
+    }
+
+    public void updateJobProgress(long ingestJobId, int totalCount, int savedCount) {
+        String sql = """
+                UPDATE ingest_jobs
+                   SET total_count = ?,
+                       success_count = ?
+                 WHERE ingest_job_id = ?
+                """;
+        jdbcTemplate.update(sql, totalCount, savedCount, ingestJobId);
     }
 
     public void markJobSuccess(long ingestJobId, Integer totalCount, int savedCount) {
@@ -134,9 +176,9 @@ public class RecipeIngestRepository {
             String sql = """
                     INSERT INTO recipe_ingredients (
                         recipe_ingredient_id, recipe_id, ingredient_id, original_name,
-                        quantity, unit, amount_text, is_required, sort_order, created_at
+                        quantity, unit, amount_text, section, is_required, sort_order, created_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, CURRENT_TIMESTAMP)
                     """;
             jdbcTemplate.update(
                     sql,
@@ -146,7 +188,8 @@ public class RecipeIngestRepository {
                     truncate(ingredient.rawText(), 150),
                     scaleQuantity(ingredient.quantity()),
                     truncate(ingredient.unit(), 30),
-                    truncate(ingredient.rawText(), 100),
+                    truncate(ingredient.ingredientText(), 100),
+                    truncate(ingredient.section(), 100),
                     ingredient.displayOrder()
             );
         }

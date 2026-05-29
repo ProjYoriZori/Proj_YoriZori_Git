@@ -23,6 +23,7 @@ public class SchemaMigrationRunner implements ApplicationRunner {
         ensureShoppingItemColumns();
         ensureNutritionLogColumns();
         ensureCustomFoodColumns();
+        ensureRecipeIngredientColumns();
         seedDefaultGuestUser();
         normalizeColumn("ingest_jobs", "source", "VARCHAR(50) NOT NULL DEFAULT 'COOKRCP01'");
         normalizeColumn("ingest_jobs", "job_type", "VARCHAR(50) NOT NULL DEFAULT 'RECIPE_INGEST'");
@@ -98,6 +99,10 @@ public class SchemaMigrationRunner implements ApplicationRunner {
         ensureColumn("custom_foods", "sodium_mg", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         ensureColumn("custom_foods", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
         ensureColumn("custom_foods", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    private void ensureRecipeIngredientColumns() {
+        ensureColumn("recipe_ingredients", "section", "VARCHAR(100) NULL");
     }
 
     private void seedDefaultGuestUser() {

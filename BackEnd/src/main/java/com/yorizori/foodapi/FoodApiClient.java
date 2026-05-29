@@ -39,10 +39,10 @@ public class FoodApiClient {
                 .retrieve()
                 .body(String.class);
 
-        return new FoodApiFetchResult(uri.toString(), rawBody, readResponse(rawBody));
+        return new FoodApiFetchResult(uri.toString(), rawBody, parseXml(rawBody));
     }
 
-    private FoodApiResponse readResponse(String rawBody) {
+    public FoodApiResponse parseXml(String rawBody) {
         try {
             return xmlMapper.readValue(rawBody, FoodApiResponse.class);
         } catch (JsonProcessingException e) {

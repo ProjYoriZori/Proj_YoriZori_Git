@@ -23,7 +23,7 @@ export function SectionHeader({ title, actionLabel, onAction, icon }) {
   );
 }
 
-export function Chip({ label, active, onPress, icon, tone = 'primary' }) {
+export function Chip({ label, amount, active, onPress, icon, tone = 'primary' }) {
   const activeColor = tone === 'warning' ? colors.warning : colors.primaryDark;
   return (
     <Pressable
@@ -32,6 +32,7 @@ export function Chip({ label, active, onPress, icon, tone = 'primary' }) {
     >
       {icon ? <MaterialCommunityIcons name={icon} size={14} color={active ? colors.surface : activeColor} /> : null}
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      {amount ? <Text style={[styles.chipAmount, active && styles.chipAmountActive]}>{amount}</Text> : null}
     </Pressable>
   );
 }
@@ -172,6 +173,15 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: colors.surface,
+  },
+  chipAmount: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  chipAmountActive: {
+    color: colors.surface,
+    opacity: 0.75,
   },
   primaryButton: {
     minHeight: 48,

@@ -204,6 +204,7 @@ export function normalizeRecipe(raw) {
           item.amount_text ||
           item.amountText ||
           [item.quantity, item.unit].filter(Boolean).join(" "),
+        section: item.section || null,
       }))
     : parsePublicRecipeIngredients(raw.RCP_PARTS_DTLS);
   const ingredients = rawIngredients.filter(({ name }) => {
