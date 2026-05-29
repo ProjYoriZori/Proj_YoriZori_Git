@@ -39,6 +39,8 @@ public class SchemaMigrationRunner implements ApplicationRunner {
         ensureColumn("users", "weight_kg", "DECIMAL(6,2) NULL");
         ensureColumn("users", "goal", "VARCHAR(30) NOT NULL DEFAULT 'MAINTAIN'");
         ensureColumn("users", "activity_level", "VARCHAR(30) NOT NULL DEFAULT 'NORMAL'");
+        ensureColumn("users", "is_deleted", "BOOLEAN NOT NULL DEFAULT FALSE");
+        ensureColumn("users", "deleted_at", "TIMESTAMP NULL");
         ensureColumn("users", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
         ensureColumn("users", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
     }
@@ -120,6 +122,8 @@ public class SchemaMigrationRunner implements ApplicationRunner {
                     weight_kg DECIMAL(6,2) NULL,
                     goal VARCHAR(30) NOT NULL DEFAULT 'MAINTAIN',
                     activity_level VARCHAR(30) NOT NULL DEFAULT 'NORMAL',
+                    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+                    deleted_at TIMESTAMP NULL,
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     PRIMARY KEY (user_id),

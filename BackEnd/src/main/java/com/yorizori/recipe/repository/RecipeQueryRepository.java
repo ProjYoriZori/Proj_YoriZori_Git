@@ -32,20 +32,28 @@ public class RecipeQueryRepository {
         if (hasText(query)) {
             sql.append("""
                      AND (
-                         r.name LIKE ?
+                         r.name LIKE ? OR REPLACE(r.name, ' ', '') LIKE ?
                          OR EXISTS (
                              SELECT 1
                                FROM recipe_ingredients ri
                                JOIN ingredients ing ON ing.ingredient_id = ri.ingredient_id
                               WHERE ri.recipe_id = r.recipe_id
-                                AND (ing.name LIKE ? OR ri.original_name LIKE ?)
+                                AND (
+                                    ing.name LIKE ? OR REPLACE(ing.name, ' ', '') LIKE ?
+                                    OR ri.original_name LIKE ? OR REPLACE(ri.original_name, ' ', '') LIKE ?
+                                )
                          )
                      )
                     """);
-            String keyword = "%" + query.trim() + "%";
+            String raw = query.trim();
+            String keyword = "%" + raw + "%";
+            String normalizedKeyword = "%" + raw.replaceAll("\\s+", "") + "%";
             args.add(keyword);
+            args.add(normalizedKeyword);
             args.add(keyword);
+            args.add(normalizedKeyword);
             args.add(keyword);
+            args.add(normalizedKeyword);
         }
 
         if (ingredientKeywords != null && !ingredientKeywords.isEmpty()) {
@@ -61,10 +69,14 @@ public class RecipeQueryRepository {
                 if (i > 0) {
                     sql.append(" OR ");
                 }
-                sql.append("ing.name LIKE ? OR ri.original_name LIKE ?");
-                String keyword = "%" + ingredientKeywords.get(i).trim() + "%";
+                sql.append("(ing.name LIKE ? OR REPLACE(ing.name, ' ', '') LIKE ? OR ri.original_name LIKE ? OR REPLACE(ri.original_name, ' ', '') LIKE ?)");
+                String rawIng = ingredientKeywords.get(i).trim();
+                String keyword = "%" + rawIng + "%";
+                String normalizedKeyword = "%" + rawIng.replaceAll("\\s+", "") + "%";
                 args.add(keyword);
+                args.add(normalizedKeyword);
                 args.add(keyword);
+                args.add(normalizedKeyword);
             }
             sql.append("))");
         }
@@ -162,8 +174,10 @@ public class RecipeQueryRepository {
                  ORDER BY ri.sort_order, ri.recipe_ingredient_id
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RecipeIngredientResponse(
-                rs.getString("name"),
-                nullToEmpty(rs.getString("amount"))
+            rs.getString("name"),
+            nullToEmpty(rs.getString("amount")),
+            "", // unit not parsed yet
+            ""  // note not parsed yet
         ), recipeId);
     }
 
@@ -305,8 +319,14 @@ public class RecipeQueryRepository {
             return false;
         }
         String normalizedValue = normalize(value);
-        return candidates.stream().anyMatch(candidate ->
-                normalizedValue.contains(candidate) || candidate.contains(normalizedValue));
+        return candidates.stream().anyMatch(candidate -> {
+                String normCandidate = normalize(candidate);
+                // If either side is very short, require exact match to avoid spurious partial matches
+                if (normCandidate.length() < 2 || normalizedValue.length() < 2) {
+                    return normalizedValue.equals(normCandidate);
+                }
+                return normalizedValue.contains(normCandidate) || normCandidate.contains(normalizedValue);
+        });
     }
 
     private static boolean hasText(String value) {
@@ -322,7 +342,28 @@ public class RecipeQueryRepository {
     }
 
     private static String normalize(String value) {
-        return value.replaceAll("\\s+", "").toLowerCase();
+        if (value == null) return "";
+        String base = value.replaceAll("\\s+", "").toLowerCase();
+        // basic synonym mapping for common ingredients
+        return applySynonyms(base);
+    }
+
+    private static String applySynonyms(String normalized) {
+        if (normalized == null) return "";
+        switch (normalized) {
+            case "계란":
+            case "egg":
+                return "달걀";
+            case "달걀":
+                return "달걀";
+            case "대파":
+                return "파";
+            case "방울토마토":
+            case "방울토마토소박이":
+                return "방울토마토";
+            default:
+                return normalized;
+        }
     }
 
     private static int toInt(BigDecimal value) {

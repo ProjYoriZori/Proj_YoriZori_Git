@@ -101,7 +101,18 @@ public class AppFeatureService {
         if (request.avoidIngredients() != null) {
             avoids.addAll(request.avoidIngredients());
         }
-        return recipeQueryRepository.recommendRecipes(ingredients, avoids, request.limit() == null ? 30 : request.limit());
+        int limit = request.limit() == null ? 30 : request.limit();
+        List<RecipeResponse> recommended = recipeQueryRepository.recommendRecipes(ingredients, avoids, limit);
+        if (recommended == null || recommended.isEmpty()) {
+            // fallback to random/latest recipes
+            return recipeQueryRepository.findRecipes(null, List.of(), 0, limit, "latest");
+        }
+        return recommended;
+    }
+
+    @Transactional
+    public void deleteMe(long userId) {
+        repository.softDeleteUser(userId);
     }
 
     @Transactional

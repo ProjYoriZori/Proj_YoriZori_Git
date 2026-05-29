@@ -59,6 +59,12 @@ public class AppFeatureController {
         return ResponseEntity.ok(service.findMe(authSupport.currentUserId(request)));
     }
 
+    @DeleteMapping("/users/me")
+    public ResponseEntity<Map<String, Boolean>> deleteMe(HttpServletRequest request) {
+        service.deleteMe(authSupport.currentUserId(request));
+        return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
     @PatchMapping("/me")
     public ResponseEntity<UserProfileResponse> updateMe(
             HttpServletRequest request,

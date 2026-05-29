@@ -368,6 +368,11 @@ public class AppFeatureRepository {
                 userId, customFoodId);
     }
 
+    public void softDeleteUser(long userId) {
+        jdbcTemplate.update("UPDATE users SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+                userId);
+    }
+
     private NutritionLogResponse findNutritionLog(long userId, long logId) {
         return jdbcTemplate.queryForObject("""
                 SELECT nutrition_log_id, recipe_id, custom_food_name, meal_date, meal_time, multiplier,

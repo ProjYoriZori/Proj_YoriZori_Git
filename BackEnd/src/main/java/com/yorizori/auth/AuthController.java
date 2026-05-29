@@ -41,4 +41,16 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> logout() {
         return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
     }
+
+    @PostMapping("/find-email")
+    public ResponseEntity<Map<String, String>> findEmail(@RequestBody Map<String, String> body) {
+        // placeholder endpoint for UI entry point. Implementation deferred.
+        return ResponseEntity.ok(Map.of("message", "This feature is not implemented. Contact admin."));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> body) {
+        // placeholder endpoint for UI entry point. Implementation deferred.
+        return ResponseEntity.ok(Map.of("message", "This feature is not implemented. Contact admin."));
+    }
 }
