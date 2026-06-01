@@ -1,6 +1,8 @@
 package com.yorizori.recipe.repository;
 
 import com.yorizori.recipe.dto.NutritionResponse;
+import com.yorizori.recipe.dto.RecipeIngredientGroupResponse;
+import com.yorizori.recipe.dto.RecipeIngredientItemResponse;
 import com.yorizori.recipe.dto.RecipeIngredientResponse;
 import com.yorizori.recipe.dto.RecipeResponse;
 import com.yorizori.recipe.dto.RecipeStepResponse;
@@ -8,7 +10,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -89,7 +93,7 @@ public class RecipeQueryRepository {
         args.add(safePage * safeSize);
 
         return jdbcTemplate.query(sql.toString(), this::mapRecipeRow, args.toArray()).stream()
-            .map(row -> toRecipeResponse(row, findIngredients(row.id()), List.of(), List.of()))
+            .map(row -> toRecipeResponse(row, findIngredients(row.id()), List.of(), List.of(), List.of()))
                 .toList();
     }
 
@@ -129,7 +133,7 @@ public class RecipeQueryRepository {
             if (row == null) {
                 return Optional.empty();
             }
-            return Optional.of(toRecipeResponse(row, findIngredients(row.id()), findSteps(row.id()), findStepDetails(row.id())));
+            return Optional.of(toRecipeResponse(row, findIngredients(row.id()), findIngredientGroups(row.id()), findSteps(row.id()), findStepDetails(row.id())));
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
@@ -167,8 +171,7 @@ public class RecipeQueryRepository {
     private List<RecipeIngredientResponse> findIngredients(long recipeId) {
         String sql = """
                 SELECT ing.name,
-                       COALESCE(ri.amount_text, ri.original_name, ing.name) AS amount,
-                       ri.section
+                       COALESCE(ri.amount_text, ri.original_name, ing.name) AS amount
                   FROM recipe_ingredients ri
                   JOIN ingredients ing ON ing.ingredient_id = ri.ingredient_id
                  WHERE ri.recipe_id = ?
@@ -176,9 +179,54 @@ public class RecipeQueryRepository {
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RecipeIngredientResponse(
                 rs.getString("name"),
-                nullToEmpty(rs.getString("amount")),
-                rs.getString("section")
+                nullToEmpty(rs.getString("amount"))
         ), recipeId);
+    }
+
+    private List<RecipeIngredientGroupResponse> findIngredientGroups(long recipeId) {
+        String sql = """
+                SELECT rig.group_id,
+                       rig.group_name,
+                       COALESCE(rig.sort_order, 0) AS group_sort,
+                       ri.ingredient_id,
+                       ri.original_name,
+                       ri.amount_text
+                  FROM recipe_ingredients ri
+                  LEFT JOIN recipe_ingredient_groups rig ON rig.group_id = ri.group_id
+                 WHERE ri.recipe_id = ?
+                 ORDER BY COALESCE(rig.sort_order, 0), ri.sort_order, ri.recipe_ingredient_id
+                """;
+
+        Map<String, List<RecipeIngredientItemResponse>> itemsMap = new LinkedHashMap<>();
+        Map<String, Long> groupIdMap = new LinkedHashMap<>();
+        Map<String, String> groupNameMap = new LinkedHashMap<>();
+        Map<String, Integer> groupSortMap = new LinkedHashMap<>();
+
+        jdbcTemplate.query(sql, rs -> {
+            long rawGroupId = rs.getLong("group_id");
+            Long groupId = rs.wasNull() ? null : rawGroupId;
+            String groupName = rs.getString("group_name");
+            int groupSort = rs.getInt("group_sort");
+            long ingredientId = rs.getLong("ingredient_id");
+            String originalName = nullToEmpty(rs.getString("original_name"));
+            String amountText = nullToEmpty(rs.getString("amount_text"));
+
+            String key = groupId != null ? String.valueOf(groupId) : "__null__";
+            itemsMap.computeIfAbsent(key, k -> new ArrayList<>())
+                    .add(new RecipeIngredientItemResponse(ingredientId, originalName, amountText));
+            groupIdMap.putIfAbsent(key, groupId);
+            groupNameMap.putIfAbsent(key, groupName);
+            groupSortMap.putIfAbsent(key, groupSort);
+        }, recipeId);
+
+        return itemsMap.entrySet().stream()
+                .map(e -> new RecipeIngredientGroupResponse(
+                        groupIdMap.get(e.getKey()),
+                        groupNameMap.get(e.getKey()),
+                        groupSortMap.getOrDefault(e.getKey(), 0),
+                        e.getValue()
+                ))
+                .toList();
     }
 
         private List<String> findSteps(long recipeId) {
@@ -225,6 +273,7 @@ public class RecipeQueryRepository {
     private RecipeResponse toRecipeResponse(
             RecipeRow row,
             List<RecipeIngredientResponse> ingredients,
+            List<RecipeIngredientGroupResponse> groups,
             List<String> steps,
             List<RecipeStepResponse> stepDetails
     ) {
@@ -235,6 +284,9 @@ public class RecipeQueryRepository {
                 toDouble(row.fatG()),
                 toDouble(row.sodiumMg())
         );
+        int totalIngredientCount = groups.isEmpty()
+                ? ingredients.size()
+                : groups.stream().mapToInt(g -> g.items().size()).sum();
         return new RecipeResponse(
                 String.valueOf(row.id()),
                 row.name(),
@@ -250,7 +302,9 @@ public class RecipeQueryRepository {
                 0,
                 List.of(),
                 ingredients.stream().map(RecipeIngredientResponse::name).toList(),
-                ingredients.size()
+                ingredients.size(),
+                groups,
+                totalIngredientCount
         );
     }
 
@@ -284,7 +338,9 @@ public class RecipeQueryRepository {
                 matchRate,
                 matched,
                 missing,
-                missing.size()
+                missing.size(),
+                recipe.groups(),
+                recipe.totalIngredientCount()
         );
     }
 
