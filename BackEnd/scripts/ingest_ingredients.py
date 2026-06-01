@@ -160,14 +160,24 @@ def _parse_a(text: str) -> list:
 
 
 def _parse_b(text: str) -> list:
-    """패턴 B — • 기준 분리, [그룹명] 추출."""
+    """패턴 B / K — • 기준 분리.
+
+    B: `• [그룹명] 재료들`
+    K: `•그룹명 : 재료들`  (대괄호 없이 그룹명: 형태)
+    """
     result = []
     for section in (s.strip() for s in text.split('•') if s.strip()):
+        # 형태 B: [그룹명]
         m = re.match(r'\[([^\]]+)\]\s*(.*)', section, re.DOTALL)
         if m:
             group_name, rest = m.group(1).strip(), m.group(2).strip()
         else:
-            group_name, rest = None, section
+            # 형태 K: 그룹명 : 재료들
+            m2 = re.match(r'^([가-힣\s]{1,20}?)\s*:\s*(.*)', section, re.DOTALL)
+            if m2 and not any(c.isdigit() for c in m2.group(1)):
+                group_name, rest = m2.group(1).strip(), m2.group(2).strip()
+            else:
+                group_name, rest = None, section
         ingredients = _split_ingredients(rest)
         if group_name or ingredients:
             result.append({'group_name': group_name, 'ingredients': ingredients})
@@ -347,6 +357,109 @@ def _parse_j(text: str) -> list:
 _PATTERN_J_RE = re.compile(r'(?:^|\s)-\s+[가-힣]')
 
 
+def _parse_l(text: str) -> list:
+    """패턴 L — 줄 첫머리 한글 그룹명 감지.
+
+    예) "재료 느타리버섯(10g), 두부(50g)\\n배추(40g)\\n다시마육수 다시마(3g)"
+        → group_name='재료':   [느타리버섯(10g), 두부(50g), 배추(40g)]
+        → group_name='다시마육수': [다시마(3g)]
+    """
+    _HEADER_RE = re.compile(r'^([가-힣]{2,10})\s+(.*)', re.DOTALL)
+
+    def _is_group_header(rest: str) -> bool:
+        if not rest:
+            return False
+        first = rest[0]
+        return '가' <= first <= '힣' and ('(' in rest or ',' in rest)
+
+    result = []
+    current_group = None
+    current_items = []
+
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        m = _HEADER_RE.match(line)
+        if m and _is_group_header(m.group(2).strip()):
+            if current_items:
+                result.append({'group_name': current_group, 'ingredients': current_items})
+            current_group = m.group(1)
+            current_items = _split_ingredients(m.group(2).strip())
+        else:
+            current_items.extend(_split_ingredients(line))
+
+    if current_items:
+        result.append({'group_name': current_group, 'ingredients': current_items})
+
+    return result
+
+
+_PATTERN_L_RE = re.compile(r'(?:^|\n)[가-힣]{2,10}\s+[가-힣][^\n]*[\(,]')
+
+
+def _parse_m(text: str) -> list:
+    """패턴 M — 줄바꿈 후 `그룹명 :` 형태.
+
+    예) "카스텔라 100g, 꿀 15g\\n해독주스 : 바나나 50g, 브로콜리 25g"
+        → group_name=None:     [카스텔라 100g, 꿀 15g]
+        → group_name='해독주스': [바나나 50g, 브로콜리 25g]
+    """
+    _LINE_GROUP_RE = re.compile(r'^([가-힣]{1,15})\s*:\s*(.*)', re.DOTALL)
+
+    ungrouped_items = []
+    groups = []
+
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        m = _LINE_GROUP_RE.match(line)
+        if m and not any(c.isdigit() for c in m.group(1)):
+            groups.append((m.group(1).strip(), _split_ingredients(m.group(2).strip())))
+        else:
+            ungrouped_items.extend(_split_ingredients(line))
+
+    result = []
+    if ungrouped_items:
+        result.append({'group_name': None, 'ingredients': ungrouped_items})
+    for group_name, items in groups:
+        if group_name or items:
+            result.append({'group_name': group_name, 'ingredients': items})
+    return result
+
+
+_PATTERN_M_RE = re.compile(r'(?:^|\n)[가-힣]{1,15}\s*:')
+
+
+def _parse_n(text: str) -> list:
+    """패턴 N — `그룹명 :` 시작 + `- 그룹명 :` 연결 (줄바꿈 없음).
+
+    예) "주재료 : 비름나물 30g, 소금물(물 100g, 소금 3g) - 양념장 : 까나리액젓 1.5g"
+        → group_name='주재료': [비름나물 30g, 소금물(물 100g, 소금 3g)]
+        → group_name='양념장': [까나리액젓 1.5g]
+    """
+    parts = re.split(r'\s*-\s*(?=[가-힣]+\s*:)', text)
+    result = []
+    for section in parts:
+        section = section.strip()
+        if not section:
+            continue
+        m = re.match(r'^([가-힣\s]{1,20}?)\s*:\s*(.*)', section, re.DOTALL)
+        if m and not any(c.isdigit() for c in m.group(1)):
+            group_name = m.group(1).strip()
+            body = m.group(2).strip()
+        else:
+            group_name, body = None, section
+        ingredients = _split_ingredients(body)
+        if group_name or ingredients:
+            result.append({'group_name': group_name or None, 'ingredients': ingredients})
+    return result
+
+
+_PATTERN_N_RE = re.compile(r'^[가-힣]+\s*:.+-\s*[가-힣]+\s*:', re.DOTALL)
+
+
 # ── 파싱 실패 로그 ─────────────────────────────────────────────────────────────
 def _log_failure(recipe_id: int, original: str):
     with open(FAIL_LOG, 'a', encoding='utf-8') as f:
@@ -396,11 +509,20 @@ def parse_ingredients(parts_text: str, recipe_id: int = None) -> list:
         if _PATTERN_G_RE.search(text):
             return _parse_g(text)
 
+        if _PATTERN_N_RE.search(text):
+            return _parse_n(text)
+
         if _PATTERN_J_RE.search(text):
             return _parse_j(text)
 
         if len(_PATTERN_H_RE.findall(text)) >= 2:
             return _parse_h(text)
+
+        if _PATTERN_M_RE.search(text):
+            return _parse_m(text)
+
+        if _PATTERN_L_RE.search(text):
+            return _parse_l(text)
 
         # 패턴 D/E — 단순 나열
         return [{'group_name': None, 'ingredients': _split_ingredients(text)}]
