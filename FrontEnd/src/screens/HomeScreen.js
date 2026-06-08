@@ -20,7 +20,12 @@ import {
 import { useAppData } from "../context/AppDataContext";
 import { colors, globalStyles, type } from "../theme";
 import { dateKey, sumNutrition } from "../utils/nutrition";
-import { filterRecipes, getMatchInfo, recommendedRecipes } from "../utils/recipes";
+import {
+  buildPreferredIngredientWeights,
+  filterRecipes,
+  getMatchInfo,
+  recommendedRecipes,
+} from "../utils/recipes";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -87,6 +92,7 @@ export default function HomeScreen({ navigation }) {
     pantryItems,
     nutritionLogs,
     seasonalIngredients,
+    avoidIngredients,
   } = useAppData();
   const [selectedSeasonal, setSelectedSeasonal] = useState(null);
 
@@ -99,14 +105,19 @@ export default function HomeScreen({ navigation }) {
   );
   const todayNutrition = sumNutrition(todayLogs);
 
+  const preferredWeights = useMemo(
+    () => buildPreferredIngredientWeights(nutritionLogs, recipes),
+    [nutritionLogs, recipes],
+  );
   const homeRecipes = useMemo(
     () =>
       recommendedRecipes(
         recipes,
         selectedPantry.length ? selectedPantry : pantryItems,
         7,
+        { avoidIngredients, preferredWeights },
       ),
-    [recipes, pantryItems, selectedPantry],
+    [recipes, pantryItems, selectedPantry, avoidIngredients, preferredWeights],
   );
   const [featuredRecipe, ...carouselRecipes] = homeRecipes;
 
@@ -124,10 +135,15 @@ export default function HomeScreen({ navigation }) {
   );
   const expiringRecipes = useMemo(() => {
     if (!expiringSoonItems.length) return [];
-    return filterRecipes(recipes, { pantryItems: expiringSoonItems, sortByPantry: true })
+    return filterRecipes(recipes, {
+      pantryItems: expiringSoonItems,
+      sortByPantry: true,
+      avoidIngredients,
+      preferredWeights,
+    })
       .filter((recipe) => getMatchInfo(recipe, expiringSoonItems).matched.length > 0)
       .slice(0, 3);
-  }, [recipes, expiringSoonItems]);
+  }, [recipes, expiringSoonItems, avoidIngredients, preferredWeights]);
 
   if (loading) return <LoadingState />;
 

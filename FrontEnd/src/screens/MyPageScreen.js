@@ -119,8 +119,87 @@ function ProfileEditForm({ profile, onSave, onCancel }) {
   );
 }
 
+function AvoidIngredientSection({ avoidIngredients, onAdd, onRemove }) {
+  const [name, setName] = useState("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAdd = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName || submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd({ name: trimmedName, reason: reason.trim() });
+      setName("");
+      setReason("");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card>
+      <SectionHeader title="기피 재료" icon="food-off-outline" />
+      <Text style={globalStyles.subtitle}>
+        등록한 재료가 들어간 레시피는 추천 목록에서 제외돼요. 언제든 추가하거나 삭제할 수 있어요.
+      </Text>
+
+      <View style={[styles.formRow, { marginTop: 14 }]}>
+        <View style={{ flex: 1 }}>
+          <Field
+            value={name}
+            onChangeText={setName}
+            placeholder="예: 고수, 가지"
+            onSubmitEditing={handleAdd}
+            returnKeyType="done"
+          />
+        </View>
+        <IconButton
+          icon="plus"
+          onPress={handleAdd}
+          backgroundColor={colors.primaryDark}
+          color={colors.surface}
+        />
+      </View>
+      <Field
+        value={reason}
+        onChangeText={setReason}
+        placeholder="이유 (선택)"
+        style={{ marginTop: 8 }}
+        onSubmitEditing={handleAdd}
+        returnKeyType="done"
+      />
+
+      {avoidIngredients.length ? (
+        <View style={styles.avoidList}>
+          {avoidIngredients.map((item) => (
+            <View key={item.id} style={styles.avoidRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.avoidName}>{item.name}</Text>
+                {item.reason ? <Text style={styles.avoidReason}>{item.reason}</Text> : null}
+              </View>
+              <IconButton
+                icon="trash-can-outline"
+                size={36}
+                color={colors.danger}
+                backgroundColor="#fff0ef"
+                onPress={() => onRemove(item.id)}
+              />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={[globalStyles.small, { marginTop: 14 }]}>
+          등록된 기피 재료가 없어요.
+        </Text>
+      )}
+    </Card>
+  );
+}
+
 export default function MyPageScreen() {
-  const { profile, saveProfile } = useAppData();
+  const { profile, saveProfile, avoidIngredients, addAvoidIngredient, removeAvoidIngredient } =
+    useAppData();
   const [editing, setEditing] = useState(false);
   const dri = useMemo(() => calculateDRI(profile), [profile]);
 
@@ -178,6 +257,12 @@ export default function MyPageScreen() {
             <ProfileView profile={profile} />
           )}
         </Card>
+
+        <AvoidIngredientSection
+          avoidIngredients={avoidIngredients}
+          onAdd={addAvoidIngredient}
+          onRemove={removeAvoidIngredient}
+        />
 
       </ScrollView>
     </SafeAreaView>
@@ -283,5 +368,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  avoidList: {
+    marginTop: 14,
+    gap: 8,
+  },
+  avoidRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  avoidName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  avoidReason: {
+    marginTop: 2,
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

@@ -14,7 +14,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Chip, EmptyState, Field, IconButton, LoadingState } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
 import { colors, globalStyles, type } from "../theme";
-import { filterRecipes, getMatchInfo } from "../utils/recipes";
+import {
+  buildPreferredIngredientWeights,
+  filterRecipes,
+  getMatchInfo,
+} from "../utils/recipes";
 
 function RecipeRow({ recipe, pantryItems, onPress }) {
   const match = getMatchInfo(recipe, pantryItems);
@@ -55,8 +59,15 @@ function RecipeRow({ recipe, pantryItems, onPress }) {
 }
 
 export default function RecipesScreen({ navigation, route }) {
-  const { loading, recipes, pantryItems, recipeError, loadRecipes } =
-    useAppData();
+  const {
+    loading,
+    recipes,
+    pantryItems,
+    recipeError,
+    loadRecipes,
+    nutritionLogs,
+    avoidIngredients,
+  } = useAppData();
   const [keyword, setKeyword] = useState("");
   const [ingredient, setIngredient] = useState("");
   const [mode, setMode] = useState(
@@ -76,9 +87,22 @@ export default function RecipesScreen({ navigation, route }) {
   useEffect(() => { setPage(0); }, [keyword, ingredient, mode]);
   useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: true }); }, [page]);
 
+  const preferredWeights = useMemo(
+    () => buildPreferredIngredientWeights(nutritionLogs, recipes),
+    [nutritionLogs, recipes],
+  );
+
   const visibleRecipes = useMemo(
-    () => filterRecipes(recipes, { keyword, ingredient, pantryItems, sortByPantry: mode === "pantry" }),
-    [recipes, keyword, ingredient, pantryItems, mode],
+    () =>
+      filterRecipes(recipes, {
+        keyword,
+        ingredient,
+        pantryItems,
+        sortByPantry: mode === "pantry",
+        avoidIngredients,
+        preferredWeights,
+      }),
+    [recipes, keyword, ingredient, pantryItems, mode, avoidIngredients, preferredWeights],
   );
 
   const totalPages = Math.ceil(visibleRecipes.length / PAGE_SIZE);
