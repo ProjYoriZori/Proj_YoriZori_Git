@@ -5,18 +5,50 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, Chip, EmptyState, Field, IconButton, PrimaryButton, SectionHeader } from '../components/ui';
 import { useAppData } from '../context/AppDataContext';
-import { colors, globalStyles } from '../theme';
+import { colors, globalStyles, type } from '../theme';
 import { getIngredientEmoji } from '../utils/ingredientEmoji';
 
 const categories = ['채소', '과일', '육류', '해산물', '유제품', '계란', '두부/콩류', '양념/소스', '냉동식품', '기타'];
 
+const expiryPresets = [
+  { label: '3일', days: 3 },
+  { label: '1주', days: 7 },
+  { label: '2주', days: 14 },
+  { label: '1개월', days: 30 },
+];
+
+function expiryPresetDate(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function ExpiryBadge({ item }) {
+  if (!item.expiryDate) return null;
+  const days = item.expiresInDays;
+  const expired = typeof days === 'number' && days < 0;
+  const dueToday = days === 0;
+  const label = expired ? '기한 지남' : dueToday ? '오늘까지' : typeof days === 'number' ? `D-${days}` : item.expiryDate;
+  const tone = expired || dueToday ? colors.danger : item.expiringSoon ? colors.warning : colors.textSoft;
+  return (
+    <View style={[styles.expiryBadge, { borderColor: tone }]}>
+      <MaterialCommunityIcons name="clock-alert-outline" size={12} color={tone} />
+      <Text style={[styles.expiryBadgeText, { color: tone }]}>{label}</Text>
+    </View>
+  );
+}
+
 function AddPantryModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
-  const [form, setForm] = useState({ name: '', category: '채소' });
+  const [form, setForm] = useState({ name: '', category: '채소', expiryDate: '' });
 
   const submit = async () => {
     if (!form.name.trim()) return;
-    await onSubmit(form);
-    setForm({ name: '', category: '채소' });
+    const expiryDate = form.expiryDate.trim();
+    await onSubmit({ name: form.name, category: form.category, expiryDate: expiryDate || null });
+    setForm({ name: '', category: '채소', expiryDate: '' });
     onClose();
   };
 
@@ -39,6 +71,27 @@ function AddPantryModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
                 />
               ))}
             </View>
+            <View style={styles.expirySection}>
+              <Text style={type.label}>유통기한 (선택)</Text>
+              <View style={styles.categoryWrap}>
+                {expiryPresets.map((preset) => {
+                  const value = expiryPresetDate(preset.days);
+                  return (
+                    <Chip
+                      key={preset.label}
+                      label={preset.label}
+                      active={form.expiryDate === value}
+                      onPress={() => setForm((current) => ({ ...current, expiryDate: value }))}
+                    />
+                  );
+                })}
+              </View>
+              <Field
+                value={form.expiryDate}
+                onChangeText={(expiryDate) => setForm((current) => ({ ...current, expiryDate }))}
+                placeholder="예: 2026-06-20"
+              />
+            </View>
             <PrimaryButton label="추가하기" icon="plus" onPress={submit} disabled={!form.name.trim()} />
           </View>
         </Pressable>
@@ -59,10 +112,21 @@ export default function FridgeScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
 
   const grouped = useMemo(() => categories.reduce((acc, category) => {
-    const items = pantryItems.filter((item) => (item.category || '기타') === category);
+    const items = pantryItems
+      .filter((item) => (item.category || '기타') === category)
+      .sort((a, b) => {
+        const aDays = typeof a.expiresInDays === 'number' ? a.expiresInDays : Infinity;
+        const bDays = typeof b.expiresInDays === 'number' ? b.expiresInDays : Infinity;
+        return aDays - bDays;
+      });
     if (items.length) acc.push({ category, items });
     return acc;
   }, []), [pantryItems]);
+
+  const expiringSoonItems = useMemo(
+    () => pantryItems.filter((item) => item.expiringSoon),
+    [pantryItems],
+  );
 
   return (
     <SafeAreaView style={globalStyles.screen} edges={['top']}>
@@ -83,6 +147,19 @@ export default function FridgeScreen({ navigation }) {
           </View>
         </Card>
 
+        {expiringSoonItems.length ? (
+          <Card flat style={styles.expiryBanner}>
+            <Text style={styles.expiryBannerText}>🔔 3일 내 소비기한 임박 재료 {expiringSoonItems.length}개</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.expiryBannerChips}>
+              {expiringSoonItems.map((item) => (
+                <View key={item.id} style={styles.expiryBannerChip}>
+                  <Text style={styles.expiryBannerChipText}>{item.name}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </Card>
+        ) : null}
+
         {grouped.map(({ category, items }) => (
           <Card key={category} style={styles.groupCard}>
             <SectionHeader title={category} icon="food-variant" />
@@ -93,7 +170,10 @@ export default function FridgeScreen({ navigation }) {
                 </Pressable>
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={styles.categoryEmoji}>{getIngredientEmoji(item.name, item.category)}</Text>
-                  <Text style={styles.itemName}>{item.name}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <ExpiryBadge item={item} />
+                  </View>
                 </View>
                 <IconButton icon="trash-can-outline" size={36} color={colors.danger} backgroundColor="#fff0ef" onPress={() => deletePantryItem(item.id)} />
               </View>
@@ -144,6 +224,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
+  expiryBanner: {
+    backgroundColor: '#faf0df',
+    gap: 10,
+  },
+  expiryBannerText: {
+    color: colors.danger,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  expiryBannerChips: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  expiryBannerChip: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  expiryBannerChipText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   groupCard: {
     paddingBottom: 6,
   },
@@ -177,6 +283,21 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '900',
+  },
+  expiryBadge: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  expiryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   itemMeta: {
     marginTop: 2,
@@ -218,6 +339,9 @@ const styles = StyleSheet.create({
   },
   formGap: {
     gap: 12,
+  },
+  expirySection: {
+    gap: 8,
   },
   formRow: {
     flexDirection: 'row',

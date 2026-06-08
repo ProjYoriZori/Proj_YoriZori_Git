@@ -20,7 +20,7 @@ import {
 import { useAppData } from "../context/AppDataContext";
 import { colors, globalStyles, type } from "../theme";
 import { dateKey, sumNutrition } from "../utils/nutrition";
-import { getMatchInfo, recommendedRecipes } from "../utils/recipes";
+import { filterRecipes, getMatchInfo, recommendedRecipes } from "../utils/recipes";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -117,6 +117,17 @@ export default function HomeScreen({ navigation }) {
     );
     return selectedItem?.recipes || [];
   }, [seasonalIngredients, selectedSeasonal]);
+
+  const expiringSoonItems = useMemo(
+    () => pantryItems.filter((item) => item.expiringSoon),
+    [pantryItems],
+  );
+  const expiringRecipes = useMemo(() => {
+    if (!expiringSoonItems.length) return [];
+    return filterRecipes(recipes, { pantryItems: expiringSoonItems, sortByPantry: true })
+      .filter((recipe) => getMatchInfo(recipe, expiringSoonItems).matched.length > 0)
+      .slice(0, 3);
+  }, [recipes, expiringSoonItems]);
 
   if (loading) return <LoadingState />;
 
@@ -229,6 +240,35 @@ export default function HomeScreen({ navigation }) {
             </View>
           )}
         </Card>
+
+        {/* Expiring-soon tie-in: surfaces the differentiation feature only when relevant */}
+        {expiringSoonItems.length ? (
+          <View>
+            <SectionHeader title="유통기한이 다가와요 · 이걸로 만들어보세요" icon="clock-alert-outline" />
+            <Text style={styles.expiryHint}>
+              {expiringSoonItems.slice(0, 3).map((item) => item.name).join(", ")}
+              {expiringSoonItems.length > 3 ? ` 외 ${expiringSoonItems.length - 3}개` : ""}의 소비기한이 얼마 남지 않았어요.
+            </Text>
+            {expiringRecipes.length ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carousel}
+              >
+                {expiringRecipes.map((recipe) => (
+                  <CarouselTile
+                    key={recipe.id}
+                    recipe={recipe}
+                    pantryItems={pantryItems}
+                    onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
+                  />
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={type.label}>아직 추천할 레시피를 찾지 못했어요.</Text>
+            )}
+          </View>
+        ) : null}
 
         {/* Nutrition: horizontal bars instead of four identical icon boxes */}
         <Card>
@@ -417,6 +457,14 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontWeight: "500",
     fontSize: 12,
+  },
+
+  expiryHint: {
+    marginTop: -2,
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 19,
   },
 
   selectedWrap: {
