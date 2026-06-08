@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -19,53 +18,62 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
-import { colors, globalStyles } from "../theme";
+import { colors, globalStyles, type } from "../theme";
 import { dateKey, sumNutrition } from "../utils/nutrition";
 import { getMatchInfo, recommendedRecipes } from "../utils/recipes";
 
-function StatBox({ icon, label, value, color }) {
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function Stat({ value, label, last }) {
   return (
-    <View style={styles.statBox}>
-      <MaterialCommunityIcons name={icon} size={20} color={color} />
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
+    <View style={[styles.stat, !last && styles.statDivider]}>
+      <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-function RecipeTile({ recipe, pantryItems, onPress, tileWidth }) {
+function NutrientBar({ label, value, unit, ratio, color }) {
+  return (
+    <View style={styles.nutrientRow}>
+      <Text style={styles.nutrientLabel}>{label}</Text>
+      <View style={styles.nutrientTrack}>
+        <View style={[styles.nutrientFill, { width: `${Math.min(100, ratio * 100)}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={styles.nutrientValue}>
+        {value}
+        <Text style={styles.nutrientUnit}>{unit}</Text>
+      </Text>
+    </View>
+  );
+}
+
+function FeaturedRecipe({ recipe, onPress }) {
+  if (!recipe) return null;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.featured, pressed && { opacity: 0.92 }]}>
+      <Image source={{ uri: recipe.imageUrl }} style={styles.featuredImage} resizeMode="cover" />
+      <View style={styles.featuredScrim} />
+      <View style={styles.featuredBody}>
+        <Text style={styles.featuredEyebrow}>오늘 만들어 볼까요</Text>
+        <Text style={styles.featuredName} numberOfLines={2}>{recipe.name}</Text>
+        <Text style={styles.featuredMeta}>{recipe.method || "조리"} · {recipe.calories}kcal</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function CarouselTile({ recipe, pantryItems, onPress }) {
   const match = getMatchInfo(recipe, pantryItems);
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.recipeTile,
-        { width: tileWidth },
-        pressed && { opacity: 0.86 },
-      ]}
-    >
-      <Image
-        source={{ uri: recipe.imageUrl }}
-        style={styles.recipeImage}
-        resizeMode="contain"
-      />
-      <View style={styles.recipeBody}>
-        <Text style={styles.recipeName} numberOfLines={1}>
-          {recipe.name}
-        </Text>
-        <Text style={styles.recipeMeta}>
-          {recipe.calories}kcal · {recipe.method}
-        </Text>
-        <View style={styles.recipeMatch}>
-          <MaterialCommunityIcons
-            name="fridge-outline"
-            size={13}
-            color={colors.primaryDark}
-          />
-          <Text style={styles.recipeMatchText}>
-            {match.matched.length}개 보유
-          </Text>
-        </View>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.86 }]}>
+      <Image source={{ uri: recipe.imageUrl }} style={styles.tileImage} resizeMode="contain" />
+      <Text style={styles.tileName} numberOfLines={1}>{recipe.name}</Text>
+      <View style={styles.tileMetaRow}>
+        <Text style={styles.tileMeta}>{recipe.calories}kcal</Text>
+        <View style={styles.tileDot} />
+        <MaterialCommunityIcons name="fridge-outline" size={12} color={colors.primaryDark} />
+        <Text style={styles.tileMatch}>{match.matched.length}개 보유</Text>
       </View>
     </Pressable>
   );
@@ -81,13 +89,10 @@ export default function HomeScreen({ navigation }) {
     seasonalIngredients,
   } = useAppData();
   const [selectedSeasonal, setSelectedSeasonal] = useState(null);
-  const { width } = useWindowDimensions();
 
-  const recipeTileColumns = width >= 900 ? 3 : width >= 600 ? 2 : 1;
-  const recipeTileWidth =
-    recipeTileColumns === 1 ? "100%" : recipeTileColumns === 2 ? "48%" : "31%";
-
-  const month = new Date().getMonth() + 1;
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const dateLabel = `${month}월 ${now.getDate()}일 ${WEEKDAYS[now.getDay()]}요일`;
   const selectedPantry = pantryItems.filter((item) => item.isSelected);
   const todayLogs = nutritionLogs.filter(
     (log) => log.date === dateKey(new Date()),
@@ -99,10 +104,12 @@ export default function HomeScreen({ navigation }) {
       recommendedRecipes(
         recipes,
         selectedPantry.length ? selectedPantry : pantryItems,
-        4,
+        7,
       ),
     [recipes, pantryItems, selectedPantry],
   );
+  const [featuredRecipe, ...carouselRecipes] = homeRecipes;
+
   const seasonalRecipes = useMemo(() => {
     if (!selectedSeasonal) return [];
     const selectedItem = seasonalIngredients.find(
@@ -119,65 +126,36 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={globalStyles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <View style={styles.heroTop}>
-            <View>
-              <Text style={styles.kicker}>오늘 뭐 먹을까요?</Text>
-              <Text style={globalStyles.title}>요리조리</Text>
-            </View>
-            <View
-              style={[
-                styles.statusBadge,
-                backendOnline ? styles.online : styles.offline,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name={
-                  backendOnline
-                    ? "cloud-check-outline"
-                    : "database-clock-outline"
-                }
-                size={15}
-                color={backendOnline ? colors.primaryDark : colors.warning}
-              />
-              <Text
-                style={[
-                  styles.statusText,
-                  {
-                    color: backendOnline ? colors.primaryDark : colors.warning,
-                  },
-                ]}
-              >
-                {backendOnline ? "백엔드 연결" : "목업 모드"}
-              </Text>
+        {/* Masthead: typographic, no boxed stat grid up top */}
+        <View style={styles.masthead}>
+          <View style={styles.mastheadTop}>
+            <Text style={styles.dateLabel}>{dateLabel}</Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: backendOnline ? colors.primary : colors.warning }]} />
+              <Text style={styles.statusLabel}>{backendOnline ? "백엔드 연결됨" : "목업 데이터"}</Text>
             </View>
           </View>
-          <Text style={styles.heroCopy}>
-            냉장고 재료를 고르면 만들기 쉬운 레시피부터 보여드릴게요.
+          <Text style={type.display}>오늘 뭐 먹지?</Text>
+          <Text style={styles.mastheadCopy}>
+            냉장고 속 재료를 고르면, 그 재료로 바로 만들 수 있는 메뉴부터 보여드려요.
           </Text>
-          <View style={styles.quickStats}>
-            <StatBox
-              icon="fridge-outline"
-              label="보유 재료"
-              value={`${pantryItems.length}개`}
-              color={colors.primaryDark}
-            />
-            <StatBox
-              icon="checkbox-marked-circle-outline"
-              label="선택 재료"
-              value={`${selectedPantry.length}개`}
-              color={colors.secondary}
-            />
-            <StatBox
-              icon="silverware-fork-knife"
-              label="식사 기록"
-              value={`${todayLogs.length}끼`}
-              color={colors.warning}
-            />
-          </View>
         </View>
 
-        <Card style={styles.seasonalCard}>
+        {/* Featured pick: one large editorial card instead of starting with a stat grid */}
+        <FeaturedRecipe
+          recipe={featuredRecipe}
+          onPress={() => featuredRecipe && navigation.navigate("RecipeDetail", { recipeId: featuredRecipe.id })}
+        />
+
+        {/* Inline numeric strip — same data the old 3-box grid showed, but reads as one line */}
+        <View style={styles.statRow}>
+          <Stat value={pantryItems.length} label="보유 재료" />
+          <Stat value={selectedPantry.length} label="선택한 재료" />
+          <Stat value={todayLogs.length} label="오늘 식사 기록" last />
+        </View>
+
+        {/* Seasonal strip: flat band, no card border, horizontal scroll */}
+        <View>
           <SectionHeader title={`${month}월 제철 식재료`} icon="leaf" />
           <ScrollView
             horizontal
@@ -199,47 +177,36 @@ export default function HomeScreen({ navigation }) {
                 />
               ))
             ) : (
-              <Text style={globalStyles.small}>
-                제철 식재료 정보를 불러오지 못했어요.
-              </Text>
+              <Text style={type.label}>제철 식재료 정보를 불러오지 못했어요.</Text>
             )}
           </ScrollView>
           {selectedSeasonal ? (
             <View style={styles.seasonalResult}>
-              <Text style={styles.miniTitle}>
-                {selectedSeasonal} 관련 레시피
-              </Text>
+              <Text style={styles.miniTitle}>{selectedSeasonal}로 만들 수 있는 메뉴</Text>
               {seasonalRecipes.length ? (
                 seasonalRecipes.slice(0, 2).map((recipe) => (
                   <Pressable
                     key={recipe.id}
-                    onPress={() =>
-                      navigation.navigate("RecipeDetail", {
-                        recipeId: recipe.id,
-                      })
-                    }
-                    style={styles.compactRecipe}
+                    onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
+                    style={({ pressed }) => [styles.compactRecipe, pressed && { opacity: 0.7 }]}
                   >
                     <Text style={styles.compactRecipeName}>{recipe.name}</Text>
-                    <Text style={styles.compactRecipeMeta}>
-                      {recipe.calories}kcal · {recipe.category}
-                    </Text>
+                    <Text style={styles.compactRecipeMeta}>{recipe.calories}kcal · {recipe.category}</Text>
                   </Pressable>
                 ))
               ) : (
-                <Text style={globalStyles.small}>
-                  아직 연결된 레시피가 없어요.
-                </Text>
+                <Text style={type.label}>아직 연결된 레시피가 없어요.</Text>
               )}
             </View>
           ) : null}
-        </Card>
+        </View>
 
-        <Card>
+        {/* Pantry: light flat card, content as inline tags rather than a boxed grid */}
+        <Card flat>
           <SectionHeader
             title="내 냉장고"
             icon="fridge-outline"
-            actionLabel="보기"
+            actionLabel="전체 보기"
             onAction={() => navigation.navigate("Fridge")}
           />
           {selectedPantry.length ? (
@@ -252,19 +219,18 @@ export default function HomeScreen({ navigation }) {
             </View>
           ) : (
             <View>
-              <Text style={globalStyles.subtitle}>
-                냉장고에서 요리할 재료를 선택해 주세요.
-              </Text>
+              <Text style={type.body}>냉장고에서 오늘 요리할 재료를 골라보세요.</Text>
               <PrimaryButton
                 label="재료 선택하기"
                 icon="fridge-outline"
                 onPress={() => navigation.navigate("Fridge")}
-                style={{ marginTop: 12 }}
+                style={{ marginTop: 14 }}
               />
             </View>
           )}
         </Card>
 
+        {/* Nutrition: horizontal bars instead of four identical icon boxes */}
         <Card>
           <SectionHeader
             title="오늘 섭취 요약"
@@ -272,58 +238,43 @@ export default function HomeScreen({ navigation }) {
             actionLabel="자세히"
             onAction={() => navigation.navigate("Nutrition")}
           />
-          <View style={styles.nutritionGrid}>
-            <StatBox
-              icon="fire"
-              label="칼로리"
-              value={`${Math.round(todayNutrition.calories)}`}
-              color={colors.secondary}
-            />
-            <StatBox
-              icon="barley"
-              label="탄수화물"
-              value={`${Math.round(todayNutrition.carbs)}g`}
-              color={colors.warning}
-            />
-            <StatBox
-              icon="food-steak"
-              label="단백질"
-              value={`${Math.round(todayNutrition.protein)}g`}
-              color={colors.danger}
-            />
-            <StatBox
-              icon="shaker-outline"
-              label="나트륨"
-              value={`${Math.round(todayNutrition.sodium)}`}
-              color="#4b8fd9"
-            />
+          <Text style={styles.caloriesHeadline}>
+            {Math.round(todayNutrition.calories)}
+            <Text style={styles.caloriesUnit}> kcal</Text>
+          </Text>
+          <View style={styles.nutrientList}>
+            <NutrientBar label="탄수화물" value={Math.round(todayNutrition.carbs)} unit="g" ratio={todayNutrition.carbs / 300} color={colors.warning} />
+            <NutrientBar label="단백질" value={Math.round(todayNutrition.protein)} unit="g" ratio={todayNutrition.protein / 120} color={colors.danger} />
+            <NutrientBar label="나트륨" value={Math.round(todayNutrition.sodium)} unit="mg" ratio={todayNutrition.sodium / 2000} color={colors.primary} />
           </View>
         </Card>
 
-        <Card>
+        {/* Recommended recipes: horizontal carousel for a different rhythm than the wrapped grid in Recipes */}
+        <View>
           <SectionHeader
-            title={selectedPantry.length ? "내 재료 추천" : "오늘의 추천"}
+            title={selectedPantry.length ? "내 재료로 만들 수 있는 메뉴" : "오늘의 추천"}
             icon="chef-hat"
             actionLabel="더보기"
             onAction={() => navigation.navigate("Recipes")}
           />
-          <View style={styles.recipeGrid}>
-            {homeRecipes.map((recipe) => (
-              <RecipeTile
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.carousel}
+          >
+            {carouselRecipes.map((recipe) => (
+              <CarouselTile
                 key={recipe.id}
                 recipe={recipe}
                 pantryItems={pantryItems}
-                tileWidth={recipeTileWidth}
-                onPress={() =>
-                  navigation.navigate("RecipeDetail", { recipeId: recipe.id })
-                }
+                onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
               />
             ))}
-          </View>
-        </Card>
+          </ScrollView>
+        </View>
 
         <PrimaryButton
-          label="레시피 확인하기"
+          label="레시피 둘러보기"
           icon="magnify"
           onPress={() => navigation.navigate("Recipes", { sortByPantry: true })}
           style={styles.mainCta}
@@ -334,79 +285,107 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    paddingTop: 8,
-    paddingBottom: 18,
+  masthead: {
+    paddingTop: 6,
+    gap: 10,
   },
-  heroTop: {
+  mastheadTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
   },
-  kicker: {
-    color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: "900",
+  dateLabel: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusLabel: {
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  mastheadCopy: {
+    color: colors.textSoft,
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 22,
+    maxWidth: 320,
+  },
+
+  featured: {
+    height: 200,
+    borderRadius: 22,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceAlt,
+  },
+  featuredImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  featuredScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(33,26,20,0.38)",
+  },
+  featuredBody: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 18,
+  },
+  featuredEyebrow: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
     marginBottom: 4,
   },
-  heroCopy: {
-    marginTop: 8,
-    color: colors.textSoft,
-    fontWeight: "700",
-    lineHeight: 20,
+  featuredName: {
+    color: colors.surface,
+    fontSize: 23,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
-  statusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+  featuredMeta: {
+    marginTop: 5,
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  statRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    borderWidth: 1,
   },
-  online: {
-    backgroundColor: "#e8f7ed",
-    borderColor: "#cbead4",
-  },
-  offline: {
-    backgroundColor: "#fff7e8",
-    borderColor: "#f7ddb1",
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  quickStats: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 16,
-  },
-  statBox: {
+  stat: {
     flex: 1,
-    minHeight: 82,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
+    paddingRight: 14,
+  },
+  statDivider: {
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    marginRight: 14,
   },
   statValue: {
-    marginTop: 5,
-    fontSize: 17,
-    fontWeight: "900",
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   statLabel: {
     marginTop: 2,
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: "800",
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: "500",
   },
-  seasonalCard: {
-    marginTop: 2,
-  },
+
   chipList: {
     gap: 8,
     paddingRight: 4,
@@ -419,8 +398,9 @@ const styles = StyleSheet.create({
   },
   miniTitle: {
     color: colors.text,
-    fontWeight: "900",
+    fontWeight: "700",
     marginBottom: 8,
+    fontSize: 14,
   },
   compactRecipe: {
     paddingVertical: 9,
@@ -429,76 +409,130 @@ const styles = StyleSheet.create({
   },
   compactRecipeName: {
     color: colors.text,
-    fontWeight: "900",
+    fontWeight: "700",
+    fontSize: 14,
   },
   compactRecipeMeta: {
     marginTop: 2,
     color: colors.textSoft,
-    fontWeight: "700",
+    fontWeight: "500",
     fontSize: 12,
   },
+
   selectedWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   selectedIngredient: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   selectedIngredientText: {
     color: colors.primaryDark,
-    fontWeight: "900",
+    fontWeight: "700",
+    fontSize: 13,
   },
-  nutritionGrid: {
-    flexDirection: "row",
-    gap: 8,
+
+  caloriesHeadline: {
+    color: colors.text,
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    marginTop: -4,
   },
-  recipeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  caloriesUnit: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textSoft,
+  },
+  nutrientList: {
+    marginTop: 16,
     gap: 12,
   },
-  recipeTile: {
-    overflow: "hidden",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  recipeImage: {
-    width: "100%",
-    aspectRatio: 1.25,
-    backgroundColor: colors.surfaceAlt,
-  },
-  recipeBody: {
-    padding: 10,
-  },
-  recipeName: {
-    color: colors.text,
-    fontWeight: "900",
-  },
-  recipeMeta: {
-    color: colors.textSoft,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 3,
-  },
-  recipeMatch: {
-    marginTop: 8,
+  nutrientRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 10,
   },
-  recipeMatchText: {
+  nutrientLabel: {
+    width: 56,
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  nutrientTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceAlt,
+    overflow: "hidden",
+  },
+  nutrientFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  nutrientValue: {
+    width: 56,
+    textAlign: "right",
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  nutrientUnit: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+
+  carousel: {
+    gap: 12,
+    paddingRight: 8,
+  },
+  tile: {
+    width: 152,
+  },
+  tileImage: {
+    width: 152,
+    height: 152,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+  },
+  tileName: {
+    marginTop: 9,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  tileMetaRow: {
+    marginTop: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  tileMeta: {
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  tileDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.muted,
+  },
+  tileMatch: {
     color: colors.primaryDark,
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "700",
   },
+
   mainCta: {
-    marginTop: 2,
+    marginTop: 4,
     marginBottom: 6,
   },
 });

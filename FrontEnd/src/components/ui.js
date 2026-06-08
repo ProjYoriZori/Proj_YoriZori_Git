@@ -1,54 +1,56 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, globalStyles } from '../theme';
+import { colors, globalStyles, type } from '../theme';
 
-export function Card({ children, style }) {
-  return <View style={[globalStyles.card, style]}>{children}</View>;
+export function Card({ children, style, flat }) {
+  return <View style={[globalStyles.card, flat && styles.cardFlat, style]}>{children}</View>;
 }
 
 export function SectionHeader({ title, actionLabel, onAction, icon }) {
   return (
     <View style={[globalStyles.between, styles.sectionHeader]}>
       <View style={globalStyles.row}>
-        {icon ? <MaterialCommunityIcons name={icon} size={20} color={colors.primaryDark} style={{ marginRight: 8 }} /> : null}
-        <Text style={globalStyles.sectionTitle}>{title}</Text>
+        {icon ? <MaterialCommunityIcons name={icon} size={17} color={colors.muted} style={{ marginRight: 7 }} /> : null}
+        <Text style={type.sectionTitle}>{title}</Text>
       </View>
       {actionLabel ? (
-        <Pressable onPress={onAction} style={styles.textButton}>
+        <Pressable onPress={onAction} style={({ pressed }) => [styles.textButton, pressed && { opacity: 0.55 }]}>
           <Text style={styles.textButtonLabel}>{actionLabel}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={15} color={colors.primaryDark} />
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-export function Chip({ label, active, onPress, icon, tone = 'primary' }) {
+export function Chip({ label, amount, active, onPress, icon, tone = 'primary' }) {
   const activeColor = tone === 'warning' ? colors.warning : colors.primaryDark;
   return (
     <Pressable
       onPress={onPress}
       style={[styles.chip, active && { backgroundColor: activeColor, borderColor: activeColor }]}
     >
-      {icon ? <MaterialCommunityIcons name={icon} size={14} color={active ? colors.surface : activeColor} /> : null}
+      {icon ? <MaterialCommunityIcons name={icon} size={13} color={active ? colors.surface : activeColor} /> : null}
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      {amount ? <Text style={[styles.chipAmount, active && styles.chipAmountActive]}>{amount}</Text> : null}
     </Pressable>
   );
 }
 
 export function PrimaryButton({ label, onPress, icon, disabled, tone = 'primary', style }) {
-  const backgroundColor = tone === 'danger' ? colors.danger : tone === 'secondary' ? colors.secondary : colors.primaryDark;
+  const backgroundColor = tone === 'danger' ? colors.danger : tone === 'secondary' ? colors.accent : colors.primaryDark;
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.primaryButton,
-        { backgroundColor, opacity: disabled ? 0.45 : pressed ? 0.86 : 1 },
+        { backgroundColor, opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
         style,
       ]}
     >
-      {icon ? <MaterialCommunityIcons name={icon} size={18} color={colors.surface} /> : null}
+      {icon ? <MaterialCommunityIcons name={icon} size={17} color={colors.surface} /> : null}
       <Text style={styles.primaryButtonText}>{label}</Text>
     </Pressable>
   );
@@ -57,7 +59,7 @@ export function PrimaryButton({ label, onPress, icon, disabled, tone = 'primary'
 export function IconButton({ icon, onPress, color = colors.text, backgroundColor = colors.surfaceAlt, size = 40 }) {
   return (
     <Pressable onPress={onPress} style={[styles.iconButton, { width: size, height: size, backgroundColor }]}>
-      <MaterialCommunityIcons name={icon} size={22} color={color} />
+      <MaterialCommunityIcons name={icon} size={20} color={color} />
     </Pressable>
   );
 }
@@ -80,7 +82,7 @@ export function Field({ value, onChangeText, placeholder, keyboardType = 'defaul
 export function EmptyState({ icon = 'information-outline', title, body }) {
   return (
     <View style={styles.empty}>
-      <MaterialCommunityIcons name={icon} size={42} color={colors.muted} />
+      <MaterialCommunityIcons name={icon} size={38} color={colors.muted} />
       <Text style={styles.emptyTitle}>{title}</Text>
       {body ? <Text style={styles.emptyBody}>{body}</Text> : null}
     </View>
@@ -140,19 +142,25 @@ export function useToast() {
 }
 
 const styles = StyleSheet.create({
+  cardFlat: {
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    backgroundColor: colors.surfaceAlt,
+  },
   sectionHeader: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   textButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceAlt,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+    paddingVertical: 4,
   },
   textButtonLabel: {
     color: colors.primaryDark,
-    fontWeight: '800',
-    fontSize: 12,
+    fontWeight: '700',
+    fontSize: 13,
   },
   chip: {
     flexDirection: 'row',
@@ -160,22 +168,31 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   chipText: {
     color: colors.textSoft,
-    fontWeight: '800',
+    fontWeight: '600',
     fontSize: 13,
   },
   chipTextActive: {
     color: colors.surface,
   },
+  chipAmount: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  chipAmountActive: {
+    color: colors.surface,
+    opacity: 0.75,
+  },
   primaryButton: {
-    minHeight: 48,
-    borderRadius: 12,
+    minHeight: 50,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -185,22 +202,22 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: colors.surface,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   iconButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   field: {
     minHeight: 46,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     color: colors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '500',
     paddingHorizontal: 14,
     textAlignVertical: 'center', // 추가된 부분: 안드로이드에서 multiline 사용 시 텍스트 가운데 정렬
   },
@@ -213,15 +230,15 @@ const styles = StyleSheet.create({
   emptyTitle: {
     marginTop: 10,
     color: colors.textSoft,
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '700',
     textAlign: 'center',
   },
   emptyBody: {
     marginTop: 4,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
     textAlign: 'center',
     lineHeight: 19,
   },
@@ -234,7 +251,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     color: colors.textSoft,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   toastContainer: {
     position: 'absolute',
@@ -262,6 +279,6 @@ const styles = StyleSheet.create({
   toastText: {
     color: colors.surface,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

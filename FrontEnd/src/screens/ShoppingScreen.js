@@ -5,7 +5,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, EmptyState, Field, IconButton, PrimaryButton, SectionHeader } from '../components/ui';
 import { useAppData } from '../context/AppDataContext';
-import { colors, globalStyles } from '../theme';
+import { colors, globalStyles, type } from '../theme';
+import { getIngredientEmoji } from '../utils/ingredientEmoji';
 
 function AddShoppingModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
   const [name, setName] = useState('');
@@ -41,17 +42,28 @@ function ShoppingItemRow({ item, onToggle, onDelete }) {
     Linking.openURL(`https://www.coupang.com/np/search?q=${query}`);
   };
 
+  const amount = [item.quantity, item.unit].filter(Boolean).join(' ');
+
   return (
     <View style={[styles.itemRow, item.isChecked && styles.checkedRow]}>
       <Pressable onPress={() => onToggle(item.id)} style={[styles.checkbox, item.isChecked && styles.checkboxActive]}>
-        <MaterialCommunityIcons name={item.isChecked ? 'check-bold' : 'circle-outline'} size={18} color={item.isChecked ? colors.surface : colors.muted} />
+        <MaterialCommunityIcons name={item.isChecked ? 'check-bold' : 'circle-outline'} size={16} color={item.isChecked ? colors.surface : colors.muted} />
       </Pressable>
-      <Text style={[styles.itemName, { flex: 1 }, item.isChecked && styles.checkedText]}>{item.name}</Text>
-      <Pressable onPress={openCoupang} style={styles.buyButton}>
-        <MaterialCommunityIcons name="cart-outline" size={13} color={colors.primaryDark} />
-        <Text style={styles.buyButtonText}>구매하기</Text>
+
+      <View style={[styles.emojiBadge, item.isChecked && styles.emojiBadgeChecked]}>
+        <Text style={styles.emoji}>{getIngredientEmoji(item.name)}</Text>
+      </View>
+
+      <View style={styles.itemTextWrap}>
+        <Text style={[styles.itemName, item.isChecked && styles.checkedText]} numberOfLines={1}>{item.name}</Text>
+        {amount ? <Text style={styles.itemAmount} numberOfLines={1}>{amount}</Text> : null}
+      </View>
+
+      <Pressable onPress={openCoupang} style={({ pressed }) => [styles.buyButton, pressed && { opacity: 0.6 }]}>
+        <MaterialCommunityIcons name="cart-outline" size={14} color={colors.primaryDark} />
+        <Text style={styles.buyButtonText}>구매</Text>
       </Pressable>
-      <IconButton icon="trash-can-outline" size={36} color={colors.danger} backgroundColor="#fff0ef" onPress={() => onDelete(item.id)} />
+      <IconButton icon="trash-can-outline" size={36} color={colors.danger} backgroundColor="#f7e9e6" onPress={() => onDelete(item.id)} />
     </View>
   );
 }
@@ -76,6 +88,8 @@ export default function ShoppingScreen() {
 
   const unchecked = shoppingItems.filter((item) => !item.isChecked);
   const checked = shoppingItems.filter((item) => item.isChecked);
+  const total = shoppingItems.length;
+  const progress = total ? checked.length / total : 0;
 
   const grouped = useMemo(() => unchecked.reduce((acc, item) => {
     const key = item.recipeId
@@ -90,35 +104,55 @@ export default function ShoppingScreen() {
     <SafeAreaView style={globalStyles.screen} edges={['top']}>
       <ScrollView contentContainerStyle={globalStyles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View>
-            <Text style={globalStyles.title}>장보기</Text>
-            <Text style={globalStyles.subtitle}>{unchecked.length}개 남음 · {checked.length}개 완료</Text>
+          <View style={globalStyles.between}>
+            <Text style={type.title}>장보기</Text>
+            <IconButton icon="plus" color={colors.surface} backgroundColor={colors.primaryDark} onPress={() => setModalVisible(true)} />
           </View>
-          <IconButton icon="plus" color={colors.surface} backgroundColor={colors.primaryDark} onPress={() => setModalVisible(true)} />
+
+          {total ? (
+            <View style={styles.progressBlock}>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+              </View>
+              <View style={styles.progressLabelRow}>
+                <Text style={styles.progressLabel}>
+                  <Text style={styles.progressCount}>{checked.length}</Text> / {total}개 구매 완료
+                </Text>
+                {checked.length ? (
+                  <Pressable onPress={clearCheckedShoppingItems} hitSlop={6}>
+                    <Text style={styles.clearLabel}>완료 항목 비우기</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ) : (
+            <Text style={type.subtitle}>레시피 상세에서 부족한 재료를 자동으로 담거나, 직접 추가해보세요.</Text>
+          )}
         </View>
 
-        {checked.length ? (
-          <Pressable style={styles.clearButton} onPress={clearCheckedShoppingItems}>
-            <MaterialCommunityIcons name="delete-sweep-outline" size={18} color={colors.danger} />
-            <Text style={styles.clearButtonText}>완료 항목 삭제</Text>
-          </Pressable>
-        ) : null}
-
         {Object.entries(grouped).map(([recipeName, items]) => (
-          <Card key={recipeName}>
-            <SectionHeader title={recipeName} icon={recipeName === '직접 추가' ? 'pencil-outline' : 'chef-hat'} />
-            {items.map((item) => (
-              <ShoppingItemRow key={item.id} item={item} onToggle={toggleShoppingItem} onDelete={deleteShoppingItem} />
-            ))}
+          <Card key={recipeName} flat>
+            <SectionHeader
+              title={recipeName}
+              icon={recipeName === '직접 추가' ? 'pencil-outline' : 'chef-hat'}
+              actionLabel={`${items.length}개`}
+            />
+            <View style={styles.itemList}>
+              {items.map((item) => (
+                <ShoppingItemRow key={item.id} item={item} onToggle={toggleShoppingItem} onDelete={deleteShoppingItem} />
+              ))}
+            </View>
           </Card>
         ))}
 
         {checked.length ? (
-          <Card style={{ opacity: 0.76 }}>
-            <SectionHeader title={`구매 완료 ${checked.length}개`} icon="check-circle-outline" />
-            {checked.map((item) => (
-              <ShoppingItemRow key={item.id} item={item} onToggle={toggleShoppingItem} onDelete={deleteShoppingItem} />
-            ))}
+          <Card flat style={styles.doneCard}>
+            <SectionHeader title="구매 완료" icon="check-circle-outline" actionLabel={`${checked.length}개`} />
+            <View style={styles.itemList}>
+              {checked.map((item) => (
+                <ShoppingItemRow key={item.id} item={item} onToggle={toggleShoppingItem} onDelete={deleteShoppingItem} />
+              ))}
+            </View>
           </Card>
         ) : null}
 
@@ -137,46 +171,67 @@ export default function ShoppingScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    paddingTop: 8,
-    paddingBottom: 20,
+    paddingTop: 6,
+    gap: 16,
+  },
+  progressBlock: {
+    gap: 8,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.surfaceAlt,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  progressLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  clearButton: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fff0ef',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  progressLabel: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  clearButtonText: {
+  progressCount: {
+    color: colors.text,
+    fontWeight: '800',
+  },
+  clearLabel: {
     color: colors.danger,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
+  },
+  doneCard: {
+    opacity: 0.7,
+  },
+  itemList: {
+    gap: 2,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    minHeight: 58,
+    gap: 11,
+    minHeight: 60,
+    paddingVertical: 9,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 10,
   },
   checkedRow: {
-    opacity: 0.75,
+    opacity: 0.6,
   },
   checkbox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -184,37 +239,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
     borderColor: colors.primaryDark,
   },
+  emojiBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emojiBadgeChecked: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.surfaceAlt,
+  },
+  emoji: {
+    fontSize: 18,
+  },
+  itemTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   itemName: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  itemAmount: {
+    marginTop: 2,
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: '500',
   },
   checkedText: {
     color: colors.muted,
     textDecorationLine: 'line-through',
-  },
-  itemMeta: {
-    marginTop: 2,
-    color: colors.textSoft,
-    fontSize: 12,
-    fontWeight: '700',
   },
   buyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: 6,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   buyButtonText: {
     color: colors.primaryDark,
-    fontSize: 11,
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '700',
   },
   overlay: {
     flex: 1,
@@ -238,15 +311,11 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: colors.text,
-    fontSize: 21,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: '800',
     marginBottom: 14,
   },
   formGap: {
     gap: 12,
-  },
-  formRow: {
-    flexDirection: 'row',
-    gap: 10,
   },
 });

@@ -36,15 +36,20 @@ import { getMatchInfo } from "../utils/recipes";
 
 const mealTypes = ["아침", "점심", "저녁", "간식"];
 
-function NutritionStat({ icon, label, value, unit, color }) {
+function extractAmountSuffix(name, amount) {
+  if (!amount || !name) return null;
+  const suffix = amount.startsWith(name) ? amount.slice(name.length).trim() : amount.trim();
+  return suffix || null;
+}
+
+function NutritionStat({ label, value, unit, last }) {
   return (
-    <View style={styles.nutritionStat}>
-      <MaterialCommunityIcons name={icon} size={19} color={color} />
-      <Text style={[styles.nutritionValue, { color }]}>
+    <View style={[styles.nutritionStat, !last && styles.nutritionDivider]}>
+      <Text style={styles.nutritionName} numberOfLines={1}>{label}</Text>
+      <Text style={styles.nutritionValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
         {Math.round(Number(value || 0))}
       </Text>
-      <Text style={styles.nutritionLabel}>{unit}</Text>
-      <Text style={styles.nutritionName}>{label}</Text>
+      <Text style={styles.nutritionUnit} numberOfLines={1}>{unit}</Text>
     </View>
   );
 }
@@ -331,11 +336,32 @@ export default function RecipeDetailScreen({ navigation, route }) {
     [recipe, pantryItems],
   );
 
+  const matchedSet = useMemo(() => new Set(match.matched), [match.matched]);
+
+  const sectionedIngredients = useMemo(() => {
+    if (!recipe) return [];
+    const sections = [];
+    const sectionMap = new Map();
+    for (const ingredient of recipe.ingredients) {
+      const key = ingredient.section || "";
+      if (!sectionMap.has(key)) {
+        const group = { section: ingredient.section || null, ingredients: [] };
+        sectionMap.set(key, group);
+        sections.push(group);
+      }
+      sectionMap.get(key).ingredients.push(ingredient);
+    }
+    return sections;
+  }, [recipe]);
+
   if (!recipe) {
     return (
       <SafeAreaView style={globalStyles.screen}>
         <View style={styles.backRow}>
-          <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          <IconButton
+            icon="arrow-left"
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs'))}
+          />
         </View>
         <EmptyState
           icon="book-remove-outline"
@@ -363,63 +389,23 @@ export default function RecipeDetailScreen({ navigation, route }) {
             resizeMode="contain"
           />
           <View style={styles.imageOverlay} />
-          <SafeAreaView style={styles.imageSafe} edges={["top"]}>
-            <IconButton
-              icon="arrow-left"
-              backgroundColor="rgba(255,255,255,0.88)"
-              onPress={() => navigation.goBack()}
-            />
-          </SafeAreaView>
+          {/* back button moved out to fixed overlay so it stays visible while scrolling */}
           <View style={styles.titleBlock}>
             <Text style={styles.detailTitle}>{recipe.name}</Text>
-            <View style={styles.detailBadges}>
-              <Text style={styles.detailBadge}>{recipe.method || "조리"}</Text>
-              <Text style={styles.detailBadge}>
-                {recipe.category || "레시피"}
-              </Text>
-              <Text style={styles.detailBadge}>{recipe.calories}kcal</Text>
-            </View>
+            <Text style={styles.detailMeta}>
+              {recipe.method || "조리"} · {recipe.category || "레시피"} · {recipe.calories}kcal
+            </Text>
           </View>
         </View>
 
         <Card style={styles.firstCard}>
           <SectionHeader title="영양 정보" icon="chart-box-outline" />
           <View style={styles.nutritionRow}>
-            <NutritionStat
-              icon="fire"
-              label="칼로리"
-              value={recipe.calories}
-              unit="kcal"
-              color={colors.secondary}
-            />
-            <NutritionStat
-              icon="barley"
-              label="탄수"
-              value={recipe.carbs}
-              unit="g"
-              color={colors.warning}
-            />
-            <NutritionStat
-              icon="food-steak"
-              label="단백질"
-              value={recipe.protein}
-              unit="g"
-              color={colors.danger}
-            />
-            <NutritionStat
-              icon="oil"
-              label="지방"
-              value={recipe.fat}
-              unit="g"
-              color="#8a68d8"
-            />
-            <NutritionStat
-              icon="shaker-outline"
-              label="나트륨"
-              value={recipe.sodium}
-              unit="mg"
-              color="#4b8fd9"
-            />
+            <NutritionStat label="칼로리" value={recipe.calories} unit="kcal" />
+            <NutritionStat label="탄수" value={recipe.carbs} unit="g" />
+            <NutritionStat label="단백질" value={recipe.protein} unit="g" />
+            <NutritionStat label="지방" value={recipe.fat} unit="g" />
+            <NutritionStat label="나트륨" value={recipe.sodium} unit="mg" last />
           </View>
         </Card>
 
@@ -428,33 +414,29 @@ export default function RecipeDetailScreen({ navigation, route }) {
             title={`재료 ${recipe.ingredients.length}가지`}
             icon="food-apple-outline"
           />
-          {match.matched.length ? (
-            <View style={styles.ingredientSection}>
-              <Text style={styles.ingredientTitle}>내가 가진 재료</Text>
+          {sectionedIngredients.map(({ section, ingredients }) => (
+            <View key={section || "__none__"} style={styles.ingredientSection}>
+              {section ? (
+                <Text style={styles.ingredientTitle}>{section}</Text>
+              ) : null}
               <View style={styles.ingredientWrap}>
-                {match.matched.map((name) => (
-                  <Chip key={name} label={name} active icon="check" />
-                ))}
+                {ingredients.map((ingredient) => {
+                  const has = matchedSet.has(ingredient.name);
+                  const amountLabel = extractAmountSuffix(ingredient.name, ingredient.amount);
+                  return (
+                    <Chip
+                      key={ingredient.name}
+                      label={ingredient.name}
+                      amount={amountLabel}
+                      active={has}
+                      icon={has ? "check" : "basket-plus-outline"}
+                      tone={has ? undefined : "warning"}
+                    />
+                  );
+                })}
               </View>
             </View>
-          ) : null}
-          {match.missing.length ? (
-            <View style={styles.ingredientSection}>
-              <Text style={[styles.ingredientTitle, { color: colors.warning }]}>
-                부족한 재료
-              </Text>
-              <View style={styles.ingredientWrap}>
-                {match.missing.map((name) => (
-                  <Chip
-                    key={name}
-                    label={name}
-                    icon="basket-plus-outline"
-                    tone="warning"
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
+          ))}
         </Card>
 
         <Card>
@@ -484,6 +466,18 @@ export default function RecipeDetailScreen({ navigation, route }) {
           </View>
         </Card>
       </ScrollView>
+
+      {/* Fixed back button: stays visible while scrolling and has safer top offset */}
+      <SafeAreaView
+        pointerEvents="box-none"
+        style={[styles.fixedBack, { top: insets.top + 10, left: 12 }]}
+      >
+        <IconButton
+          icon="arrow-left"
+          backgroundColor="rgba(255,255,255,0.98)"
+          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs'))}
+        />
+      </SafeAreaView>
 
       <View style={[styles.bottomActions, { paddingBottom: 16 + insets.bottom }]}>
         <PrimaryButton
@@ -591,41 +585,32 @@ const styles = StyleSheet.create({
   },
   detailTitle: {
     color: colors.surface,
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: 0,
+    fontSize: 27,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
-  detailBadges: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 10,
-  },
-  detailBadge: {
-    color: colors.surface,
-    fontSize: 12,
-    fontWeight: "900",
-    backgroundColor: "rgba(255,255,255,0.22)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    overflow: "hidden",
+  detailMeta: {
+    marginTop: 7,
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 13,
+    fontWeight: "600",
   },
   firstCard: {
     marginTop: -2,
   },
   nutritionRow: {
     flexDirection: "row",
-    gap: 7,
+    alignItems: "stretch",
   },
   nutritionStat: {
     flex: 1,
-    minHeight: 82,
+    minWidth: 0,
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-    borderRadius: 12,
     paddingHorizontal: 4,
+  },
+  nutritionDivider: {
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
   },
   stepImage: {
     width: "100%",
@@ -634,21 +619,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: colors.surfaceAlt,
   },
-  nutritionValue: {
-    marginTop: 4,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  nutritionLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "800",
-  },
   nutritionName: {
-    marginTop: 2,
     color: colors.textSoft,
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  nutritionValue: {
+    marginTop: 6,
+    width: "100%",
+    color: colors.text,
+    fontSize: 18,
     fontWeight: "800",
+    letterSpacing: -0.2,
+    textAlign: "center",
+  },
+  nutritionUnit: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "600",
   },
   ingredientSection: {
     marginTop: 2,
@@ -657,7 +646,7 @@ const styles = StyleSheet.create({
   ingredientTitle: {
     color: colors.primaryDark,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "700",
     marginBottom: 8,
   },
   ingredientWrap: {
@@ -682,7 +671,7 @@ const styles = StyleSheet.create({
   },
   stepNoText: {
     color: colors.surface,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   stepText: {
     color: colors.text,
@@ -741,7 +730,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.text,
     fontSize: 20,
-    fontWeight: "900",
+    fontWeight: "800",
     marginBottom: 6,
   },
   timerDisplay: {
@@ -787,7 +776,7 @@ const styles = StyleSheet.create({
   inputColon: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   timerActions: {
     flexDirection: "row",
@@ -826,5 +815,10 @@ const styles = StyleSheet.create({
   },
   backRow: {
     padding: 18,
+  },
+  fixedBack: {
+    position: "absolute",
+    zIndex: 40,
+    // left/top are provided inline to account for safe-area insets
   },
 });
