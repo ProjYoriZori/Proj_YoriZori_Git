@@ -1,4 +1,16 @@
 {
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"systemMessage\": \"[Session End Checklist]\\n1. Did you run git add on changed files?\\n2. Did you update the relevant docs/ MD file? (CHANGELOG.md, ROADMAP.md, etc.)\"}'"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "PowerShell($mysql = \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\"; $pass = \"SMT2gmy0\\)qYtb\\)#K\"; & $mysql -u root \"-p$pass\" --host=127.0.0.1 --port=3306 --connect-timeout=5 -e \"SELECT user, host, plugin FROM mysql.user WHERE user='root';\" 2>&1)",

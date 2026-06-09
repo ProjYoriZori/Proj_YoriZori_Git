@@ -6,7 +6,14 @@
       "PowerShell(npm --version)",
       "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\" -Depth 2 | Where-Object { !$_.FullName.Contains\\('.git'\\) } | Select-Object FullName)",
       "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\FrontEnd\\\\src\" -Depth 2 | Select-Object FullName | Where-Object { !$_.FullName.Contains\\('node_modules'\\) })",
-      "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\BackEnd\\\\src\\\\main\\\\java\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName | Select-Object -First 40)"
+      "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\BackEnd\\\\src\\\\main\\\\java\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName | Select-Object -First 40)",
+      "Skill(update-config)",
+      "Bash(node *)",
+      "Bash(npm install *)",
+      "Bash(cast source *)",
+      "Bash(cast list *)",
+      "PowerShell($mysql = \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\"; $pass = \"159159fdSA!\"; & $mysql -u root \"-p$pass\" --host=127.0.0.1 --port=3306 -e \"SHOW DATABASES LIKE 'yorizori_DB';\" 2>&1)",
+      "Bash(git add *)"
     ]
   }
 }

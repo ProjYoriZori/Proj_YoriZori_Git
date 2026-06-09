@@ -18,7 +18,7 @@
   java -version  # 확인
   ```
 - **MySQL 8.x**: https://dev.mysql.com/downloads/mysql/
-  - 또는 **Google Cloud SQL + Cloud SQL Auth Proxy** (선택)
+  - 반드시 로컬 MySQL 8.x 사용
 - **Gradle Wrapper**: 프로젝트에 포함됨 ✅
 
 ### FrontEnd
@@ -69,8 +69,6 @@ FOOD_API_KEY=your-food-api-key-from-食品의약품안전처
 # JWT 시크릿 (개발용)
 JWT_SECRET=dev-secret-change-in-production
 
-# Cloud SQL (선택)
-CLOUD_SQL_CONNECTION_NAME=project-id:region:instance-name
 ```
 
 **⚠️ 중요**: `.env` 파일을 `.gitignore`에 추가하여 커밋 방지
@@ -103,19 +101,6 @@ FLUSH PRIVILEGES;
 # 확인
 SHOW DATABASES;
 EXIT;
-```
-
-#### 옵션 B: Cloud SQL + Auth Proxy (선택)
-
-```powershell
-# Cloud SQL Auth Proxy 다운로드
-# https://cloud.google.com/sql/docs/mysql/sql-proxy
-
-# 실행
-cloud-sql-proxy.exe --port=3307 "project-id:region:instance-name"
-
-# .env에서 포트 설정
-DB_PORT=3307
 ```
 
 ### 2.3 BackEnd 빌드 & 실행
@@ -391,9 +376,9 @@ npm run web
 
 배포는 별도 가이드를 참고하세요. 일반적인 흐름:
 
-1. **BackEnd**: Google Cloud Run 배포
-2. **FrontEnd**: Firebase Hosting 배포
-3. **Database**: Google Cloud SQL
+1. **BackEnd**: 배포 환경 TBD
+2. **FrontEnd**: 배포 환경 TBD
+3. **Database**: MySQL 8.x
 
 ---
 

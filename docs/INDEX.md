@@ -34,11 +34,12 @@
 | -------------------------------------- | ---------------------- | --------------- |
 | [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) | React/Expo 개발 가이드 | FrontEnd 개발자 |
 
-### 🛠️ 도구
+### 🛠️ 도구 & 기타
 
-| 문서                                                         | 설명                         | 대상                    |
-| ------------------------------------------------------------ | ---------------------------- | ----------------------- |
-| [../AGENT_SKILL_CAST_GUIDE.md](../AGENT_SKILL_CAST_GUIDE.md) | Agent Skill Cast 도구 사용법 | AI 에이전트 스킬 관리자 |
+| 문서                                                         | 설명                              | 대상        |
+| ------------------------------------------------------------ | --------------------------------- | ----------- |
+| [copilot-cli-workflow.md](copilot-cli-workflow.md)           | AI 도구 최소 컨텍스트 전달 절차   | 모든 개발자 |
+| [CHANGELOG.md](CHANGELOG.md)                                 | 백엔드 주요 변경 이력             | 모든 개발자 |
 
 ---
 
@@ -293,16 +294,20 @@ ARCHITECTURE
 
 ## 📅 문서 업데이트 정보
 
-| 문서                | 마지막 업데이트 | 버전 |
-| ------------------- | --------------- | ---- |
-| PROJECT_OVERVIEW.md | 2026-06-09      | 1.0  |
-| ARCHITECTURE.md     | 2026-06-09      | 1.0  |
-| SETUP_AND_RUN.md    | 2026-06-09      | 1.0  |
-| BACKEND_GUIDE.md    | 2026-06-09      | 1.0  |
-| FRONTEND_GUIDE.md   | 2026-06-09      | 1.0  |
-| DATABASE.md         | 2026-06-09      | 1.0  |
-| API_ENDPOINTS.md    | 2026-06-09      | 1.0  |
-| TROUBLESHOOTING.md  | 2026-06-09      | 1.0  |
+| 문서                    | 마지막 업데이트 | 버전 |
+| ----------------------- | --------------- | ---- |
+| PROJECT_OVERVIEW.md     | 2026-06-09      | 1.0  |
+| ARCHITECTURE.md         | 2026-06-09      | 1.0  |
+| SETUP_AND_RUN.md        | 2026-06-09      | 1.0  |
+| BACKEND_GUIDE.md        | 2026-06-09      | 1.0  |
+| FRONTEND_GUIDE.md       | 2026-06-09      | 1.0  |
+| DATABASE.md             | 2026-06-09      | 1.0  |
+| API_ENDPOINTS.md        | 2026-06-09      | 1.0  |
+| TROUBLESHOOTING.md      | 2026-06-09      | 1.0  |
+| TEST_CASES.md           | 2026-06-09      | 1.0  |
+| CHANGELOG.md            | 2026-06-09      | 1.0  |
+| ROADMAP.md              | 2026-06-09      | 1.0  |
+| copilot-cli-workflow.md | 2026-06-09      | 1.0  |
 
 ---
 

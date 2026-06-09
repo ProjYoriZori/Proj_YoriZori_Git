@@ -28,7 +28,7 @@
 - **언어**: Java 17
 - **프레임워크**: Spring Boot 3.3.x
 - **빌드**: Gradle (wrapper 포함)
-- **데이터베이스**: MySQL 8.x / Google Cloud SQL
+- **데이터베이스**: MySQL 8.x (로컬)
 - **인증**: JWT (HMAC SHA-256)
 - **API**: RESTful API (Spring Web)
 - **데이터 접근**: Spring JDBC (JdbcTemplate)
@@ -45,7 +45,7 @@
 ### 외부 서비스
 
 - **식품 데이터**: 식품의약품안전처 OpenAPI (COOKRCP01)
-- **클라우드**: Google Cloud SQL + Auth Proxy (선택)
+- **OCR**: Google Vision API (영양성분 인식)
 
 ---
 
@@ -104,7 +104,7 @@
 - Spring Boot API 서버 개발/유지보수
 - 데이터베이스 스키마 설계 및 최적화
 - JWT 기반 인증 시스템 구현
-- 외부 API (식약처, Google Cloud SQL 등) 연동
+- 외부 API (식약처 OpenAPI, Google Vision API) 연동
 - 단위/통합 테스트 작성
 
 ### FrontEnd 개발자
@@ -117,7 +117,7 @@
 
 ### DevOps/Infra
 
-- Google Cloud SQL 설정 및 관리
+- MySQL 로컬 DB 관리
 - 배포 파이프라인 구축
 - 환경 변수 및 시크릿 관리
 - 모니터링 및 로깅
@@ -161,7 +161,7 @@
 
 외부 연동:
 └─→ 식약처 OpenAPI (레시피 수집)
-└─→ Google Cloud SQL (클라우드 DB)
+└─→ Local MySQL 8.x (DB)
 ```
 
 ---
@@ -247,17 +247,17 @@
 
 ### 개발 환경
 
-- 로컬 MySQL 또는 Cloud SQL + Auth Proxy
+- 로컬 MySQL 8.x
 
 ### 스테이징 환경
 
-- Cloud SQL 사용
+- 로컬 MySQL 사용
 
 ### 프로덕션 환경
 
 - Google Cloud Run (BackEnd)
 - Firebase Hosting (FrontEnd)
-- Cloud SQL 프로덕션 인스턴스
+- MySQL 인스턴스
 
 ---
 
