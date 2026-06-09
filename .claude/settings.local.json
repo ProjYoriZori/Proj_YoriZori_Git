@@ -13,7 +13,18 @@
       "Bash(cast source *)",
       "Bash(cast list *)",
       "PowerShell($mysql = \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\"; $pass = \"159159fdSA!\"; & $mysql -u root \"-p$pass\" --host=127.0.0.1 --port=3306 -e \"SHOW DATABASES LIKE 'yorizori_DB';\" 2>&1)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(.\\\\gradlew.bat bootRun --args=\"--spring.profiles.active=local\")",
+      "PowerShell($proc = Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c\", \"cd /d D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\BackEnd && gradlew.bat bootRun --args=`\"--spring.profiles.active=local`\"\" -PassThru -WindowStyle Normal; Write-Output \"Started PID: $\\($proc.Id\\)\")",
+      "Bash(curl -sf http://localhost:8080/api/v1/recipes)",
+      "Read(//tmp/**)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Tee-Object *)",
+      "PowerShell(New-NetFirewallRule *)",
+      "PowerShell(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch \"^127\\\\.\" -and $_.IPAddress -notmatch \"^169\\\\.\" } | Select-Object InterfaceAlias, IPAddress)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'총 {len\\(d\\)}개, 첫번째: {d[0][\\\\\"title\\\\\"]} \\(칼로리:{d[0][\\\\\"calories\\\\\"]}kcal\\)'\\)\")",
+      "PowerShell(Get-NetFirewallRule *)",
+      "PowerShell(Remove-Item *)"
     ]
   }
 }

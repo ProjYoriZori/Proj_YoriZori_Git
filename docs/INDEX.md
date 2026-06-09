@@ -40,6 +40,7 @@
 | ------------------------------------------------------------ | --------------------------------- | ----------- |
 | [copilot-cli-workflow.md](copilot-cli-workflow.md)           | AI 도구 최소 컨텍스트 전달 절차   | 모든 개발자 |
 | [CHANGELOG.md](CHANGELOG.md)                                 | 백엔드 주요 변경 이력             | 모든 개발자 |
+| [REMOTE_DB_GUIDE.md](REMOTE_DB_GUIDE.md)                     | 다른 PC에서 서버 API 연결 가이드 (포트 8080) | 모든 개발자 |
 
 ---
 

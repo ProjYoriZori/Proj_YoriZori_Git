@@ -4,6 +4,15 @@
 
 ---
 
+## [2026-06-09] 원격 접속 아키텍처 변경: MySQL 직접 노출 → 백엔드 API 서버 경유
+
+- **이유**: MySQL(3306) 직접 노출 방식 대신, 백엔드를 서버 PC에서 실행하고 다른 PC는 API(8080)만 호출하는 표준 클라이언트-서버 구조로 변경
+- `docs/REMOTE_DB_GUIDE.md`: 전면 재작성 (MySQL 원격 접속 → 백엔드 API 서버 연결 가이드)
+- `FrontEnd/.env.remote.example` 추가: `EXPO_PUBLIC_API_BASE_URL=http://172.30.122.174:8080`
+- `BackEnd/.env.remote.example` 삭제: 다른 PC에서 백엔드 직접 실행 불필요
+
+---
+
 ## [2026-06-09] DB를 Google Cloud SQL에서 로컬 MySQL로 전환
 
 - **이유**: Google Cloud 크레딧 소진으로 인해 로컬 MySQL 8.x로 전환
