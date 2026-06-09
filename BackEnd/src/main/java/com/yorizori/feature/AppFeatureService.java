@@ -2,6 +2,8 @@ package com.yorizori.feature;
 
 import com.yorizori.auth.AuthDtos.UserProfileResponse;
 import com.yorizori.auth.AuthService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yorizori.feature.FeatureDtos.AvoidIngredientResponse;
 import com.yorizori.feature.FeatureDtos.CustomFoodResponse;
 import com.yorizori.feature.FeatureDtos.DailyNutritionSummaryResponse;
@@ -15,24 +17,46 @@ import com.yorizori.recipe.repository.RecipeQueryRepository;
 import com.yorizori.recipe.service.RecipeQueryService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 public class AppFeatureService {
 
     private static final Pattern KOREAN_WORD = Pattern.compile("[가-힣A-Za-z0-9]{2,}");
+    private static final String VISION_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
     @Value("${GOOGLE_VISION_API_KEY:}")
     private String googleVisionApiKey;
+
+    @Value("${GOOGLE_APPLICATION_CREDENTIALS:}")
+    private String googleApplicationCredentials;
 
     private final AppFeatureRepository repository;
     private final RecipeQueryRepository recipeQueryRepository;
@@ -214,34 +238,42 @@ public class AppFeatureService {
     }
 
     public FeatureDtos.OcrNutritionResponse extractNutrition(FeatureDtos.OcrNutritionRequest request) {
-        String apiKey = googleVisionApiKey;
-        if (apiKey == null || apiKey.isBlank()) {
+        String credentialSource = resolveVisionCredentialSource();
+        if (!hasText(credentialSource)) {
             return new FeatureDtos.OcrNutritionResponse(null, null, null, null, null, null, null, "",
-                    "GOOGLE_VISION_API_KEY not configured.");
+                    "Vision 인증 정보가 없어요. GOOGLE_APPLICATION_CREDENTIALS 또는 GOOGLE_VISION_API_KEY를 설정해 주세요.");
         }
         if (request.imageBase64() == null || request.imageBase64().isBlank()) {
             return new FeatureDtos.OcrNutritionResponse(null, null, null, null, null, null, null, "",
                     "imageBase64 is required.");
         }
 
-        String rawText = callGoogleVision(request.imageBase64(), request.mediaType(), apiKey);
+        String rawText;
+        if (looksLikeServiceAccountCredential(credentialSource)) {
+            String accessToken = fetchVisionAccessToken(credentialSource);
+            if (!hasText(accessToken)) {
+                return new FeatureDtos.OcrNutritionResponse(null, null, null, null, null, null, null, "",
+                        "서비스 계정으로 Vision 토큰을 발급하지 못했어요. JSON 파일 경로나 내용이 맞는지 확인해 주세요.");
+            }
+            rawText = callGoogleVisionWithAccessToken(request.imageBase64(), request.mediaType(), accessToken);
+        } else {
+            rawText = callGoogleVisionWithApiKey(request.imageBase64(), request.mediaType(), credentialSource);
+        }
         return parseNutritionLabel(rawText);
     }
 
-    private String callGoogleVision(String imageBase64, String mediaType, String apiKey) {
+    private String callGoogleVisionWithApiKey(String imageBase64, String mediaType, String apiKey) {
         try {
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            RestTemplate restTemplate = new RestTemplate();
             String url = "https://vision.googleapis.com/v1/images:annotate?key=" + apiKey;
 
-            String mimeType = (mediaType != null && !mediaType.isBlank()) ? mediaType : "image/jpeg";
             String body = String.format("""
                     {"requests":[{"image":{"content":"%s"},"features":[{"type":"TEXT_DETECTION","maxResults":1}],"imageContext":{"languageHints":["ko"]}}]}
                     """, imageBase64).strip();
-            // mimeType은 Vision API의 content 방식에선 불필요하나 참고용으로 변수 유지
 
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(body, headers);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
             @SuppressWarnings("unchecked")
             java.util.Map<String, Object> response = restTemplate.postForObject(url, entity, java.util.Map.class);
@@ -261,6 +293,167 @@ public class AppFeatureService {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    private String callGoogleVisionWithAccessToken(String imageBase64, String mediaType, String accessToken) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "https://vision.googleapis.com/v1/images:annotate";
+
+            String body = String.format("""
+                    {"requests":[{"image":{"content":"%s"},"features":[{"type":"TEXT_DETECTION","maxResults":1}],"imageContext":{"languageHints":["ko"]}}]}
+                    """, imageBase64).strip();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(accessToken);
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> response = restTemplate.postForObject(url, entity, java.util.Map.class);
+            if (response == null) return "";
+
+            @SuppressWarnings("unchecked")
+            java.util.List<java.util.Map<String, Object>> responses =
+                    (java.util.List<java.util.Map<String, Object>>) response.get("responses");
+            if (responses == null || responses.isEmpty()) return "";
+
+            @SuppressWarnings("unchecked")
+            java.util.List<java.util.Map<String, Object>> annotations =
+                    (java.util.List<java.util.Map<String, Object>>) responses.get(0).get("textAnnotations");
+            if (annotations == null || annotations.isEmpty()) return "";
+
+            return String.valueOf(annotations.get(0).getOrDefault("description", ""));
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String resolveVisionCredentialSource() {
+        if (hasText(googleApplicationCredentials)) {
+            return googleApplicationCredentials.trim();
+        }
+        return googleVisionApiKey == null ? "" : googleVisionApiKey.trim();
+    }
+
+    private boolean looksLikeServiceAccountCredential(String value) {
+        if (!hasText(value)) {
+            return false;
+        }
+        String trimmed = value.trim();
+        if (trimmed.startsWith("{")) {
+            return true;
+        }
+        if (trimmed.toLowerCase(Locale.ROOT).endsWith(".json")) {
+            return true;
+        }
+        try {
+            return Files.exists(Path.of(trimmed));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private String fetchVisionAccessToken(String credentialSource) {
+        try {
+            String json = readCredentialJson(credentialSource);
+            if (!hasText(json)) {
+                return "";
+            }
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode node = objectMapper.readTree(json);
+            String clientEmail = text(node, "client_email");
+            String privateKey = text(node, "private_key");
+            if (!hasText(clientEmail) || !hasText(privateKey)) {
+                return "";
+            }
+
+            String assertion = createSignedJwt(clientEmail, privateKey);
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+            form.add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
+            form.add("assertion", assertion);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.postForObject(
+                    "https://oauth2.googleapis.com/token",
+                    new HttpEntity<>(form, headers),
+                    Map.class
+            );
+            if (response == null) {
+                return "";
+            }
+            Object token = response.get("access_token");
+            return token == null ? "" : String.valueOf(token);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String readCredentialJson(String credentialSource) throws IOException {
+        String trimmed = credentialSource == null ? "" : credentialSource.trim();
+        if (!hasText(trimmed)) {
+            return "";
+        }
+        if (trimmed.startsWith("{")) {
+            return trimmed;
+        }
+        Path path = Path.of(trimmed);
+        return Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : "";
+    }
+
+    private String createSignedJwt(String clientEmail, String privateKeyPem) throws Exception {
+        long issuedAt = Instant.now().getEpochSecond();
+        long expiresAt = issuedAt + 3600;
+
+        Map<String, Object> header = new LinkedHashMap<>();
+        header.put("alg", "RS256");
+        header.put("typ", "JWT");
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("iss", clientEmail);
+        payload.put("scope", VISION_SCOPE);
+        payload.put("aud", "https://oauth2.googleapis.com/token");
+        payload.put("iat", issuedAt);
+        payload.put("exp", expiresAt);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String encodedHeader = base64Url(objectMapper.writeValueAsBytes(header));
+        String encodedPayload = base64Url(objectMapper.writeValueAsBytes(payload));
+        String signingInput = encodedHeader + "." + encodedPayload;
+
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(parsePrivateKey(privateKeyPem));
+        signature.update(signingInput.getBytes(StandardCharsets.UTF_8));
+        String encodedSignature = base64Url(signature.sign());
+        return signingInput + "." + encodedSignature;
+    }
+
+    private PrivateKey parsePrivateKey(String privateKeyPem) throws Exception {
+        String normalized = privateKeyPem
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
+        byte[] der = Base64.getDecoder().decode(normalized);
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(der);
+        return KeyFactory.getInstance("RSA").generatePrivate(spec);
+    }
+
+    private String base64Url(byte[] value) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
+    }
+
+    private String text(JsonNode node, String fieldName) {
+        JsonNode child = node == null ? null : node.get(fieldName);
+        return child == null || child.isNull() ? "" : child.asText("");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private static final Pattern NUM = Pattern.compile("(\\d+(?:[.,]\\d+)?)");
@@ -489,6 +682,11 @@ public class AppFeatureService {
 
     private String safeUpper(String value) {
         return value == null ? "" : value.toUpperCase(Locale.ROOT);
+    }
+
+    private boolean looksLikeServiceAccountJson(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        return trimmed.startsWith("{") && trimmed.contains("private_key") && trimmed.contains("client_email");
     }
 
     private double round(double value) {

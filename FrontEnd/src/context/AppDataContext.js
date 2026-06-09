@@ -88,6 +88,7 @@ export function AppDataProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [customFoods, setCustomFoods] = useState([]);
   const [seasonalIngredients, setSeasonalIngredients] = useState([]);
+  const [avoidIngredients, setAvoidIngredients] = useState([]);
   const [backendOnline, setBackendOnline] = useState(false);
   const [recipeError, setRecipeError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,7 @@ export function AppDataProvider({ children }) {
     setProfile(snapshot.profile);
     setCustomFoods(snapshot.customFoods);
     setSeasonalIngredients(snapshot.seasonalIngredients || []);
+    setAvoidIngredients(snapshot.avoidIngredients || []);
     setRecipeError(snapshot.recipeError);
     setBackendOnline(snapshot.backendOnline);
     setLoading(false);
@@ -383,8 +385,35 @@ export function AppDataProvider({ children }) {
           setBackendOnline(false);
         }
       },
+      addAvoidIngredient: async (input) => {
+        const item = {
+          id: makeId("avoid"),
+          name: input.name,
+          reason: input.reason || "",
+        };
+        setAvoidIngredients((items) => [item, ...items]);
+        try {
+          const created = await api.addAvoidIngredient({
+            name: item.name,
+            reason: item.reason || null,
+          });
+          setAvoidIngredients((items) =>
+            items.map((existing) => (existing.id === item.id ? created : existing)),
+          );
+        } catch {
+          setBackendOnline(false);
+        }
+      },
+      removeAvoidIngredient: async (id) => {
+        setAvoidIngredients((items) => items.filter((item) => item.id !== id));
+        try {
+          await api.removeAvoidIngredient(id);
+        } catch {
+          setBackendOnline(false);
+        }
+      },
     }),
-    [customFoods, nutritionLogs, pantryItems, profile, shoppingItems],
+    [avoidIngredients, customFoods, nutritionLogs, pantryItems, profile, shoppingItems],
   );
 
   const value = useMemo(
@@ -396,6 +425,7 @@ export function AppDataProvider({ children }) {
       profile,
       customFoods,
       seasonalIngredients,
+      avoidIngredients,
       backendOnline,
       recipeError,
       loading,
@@ -403,6 +433,7 @@ export function AppDataProvider({ children }) {
     }),
     [
       actions,
+      avoidIngredients,
       backendOnline,
       customFoods,
       loading,
