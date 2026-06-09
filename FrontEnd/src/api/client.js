@@ -166,6 +166,14 @@ function normalizeSeasonalIngredient(raw) {
   };
 }
 
+function normalizeAvoidIngredient(raw) {
+  return {
+    id: String(raw.avoid_ingredient_id || raw.avoidIngredientId || raw.id),
+    name: raw.name || raw.ingredient_name || raw.ingredientName || "",
+    reason: raw.reason || "",
+  };
+}
+
 function splitQuantityText(quantityText = "") {
   const text = String(quantityText || "").trim();
   if (!text) {
@@ -496,6 +504,7 @@ export async function loadInitialData() {
     logsResult,
     customFoodsResult,
     seasonalResult,
+    avoidResult,
   ] = await Promise.all([
     readRequiredList(`${ENDPOINTS.recipes}?limit=1200`, normalizeRecipe),
     readList(ENDPOINTS.pantryItems, normalizePantryItem),
@@ -511,6 +520,7 @@ export async function loadInitialData() {
       `${ENDPOINTS.seasonalIngredients}?month=${currentMonth}`,
       normalizeSeasonalIngredient,
     ),
+    readList(ENDPOINTS.avoidIngredients, normalizeAvoidIngredient),
   ]);
 
   return {
@@ -521,6 +531,7 @@ export async function loadInitialData() {
     profile: profileResult.data,
     customFoods: customFoodsResult.data,
     seasonalIngredients: seasonalResult.data,
+    avoidIngredients: avoidResult.data,
     recipeError: recipeResult.error?.message || null,
     backendOnline: [
       recipeResult,
@@ -530,6 +541,7 @@ export async function loadInitialData() {
       logsResult,
       customFoodsResult,
       seasonalResult,
+      avoidResult,
     ].some((result) => result.online),
   };
 }
@@ -613,8 +625,14 @@ export const api = {
       method: "PATCH",
       body: toProfileRequest(profile),
     }).then(normalizeProfile),
+  getAvoidIngredients: () =>
+    request(ENDPOINTS.avoidIngredients).then((payload) =>
+      unwrapList(payload).map(normalizeAvoidIngredient),
+    ),
   addAvoidIngredient: (body) =>
-    request(ENDPOINTS.avoidIngredients, { method: "POST", body }),
+    request(ENDPOINTS.avoidIngredients, { method: "POST", body }).then(
+      normalizeAvoidIngredient,
+    ),
   removeAvoidIngredient: (id) =>
     request(`${ENDPOINTS.avoidIngredients}/${id}`, { method: "DELETE" }),
   addFavorite: (body) =>

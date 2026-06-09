@@ -13,17 +13,23 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Chip, EmptyState, Field, IconButton, LoadingState } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
-import { colors, globalStyles } from "../theme";
-import { filterRecipes, getMatchInfo } from "../utils/recipes";
+import { colors, globalStyles, type } from "../theme";
+import {
+  buildPreferredIngredientWeights,
+  filterRecipes,
+  getMatchInfo,
+} from "../utils/recipes";
 
 function RecipeRow({ recipe, pantryItems, onPress }) {
   const match = getMatchInfo(recipe, pantryItems);
+  const total = match.matched.length + match.missing.length;
+  const ratio = total ? match.matched.length / total : 0;
   const { width } = useWindowDimensions();
-  const imageSize = Math.max(72, Math.min(112, Math.round(width * 0.18)));
+  const imageSize = Math.max(72, Math.min(108, Math.round(width * 0.17)));
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.recipeRow, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.recipeRow, pressed && { opacity: 0.8 }]}
     >
       <Image
         source={{ uri: recipe.imageUrl }}
@@ -31,56 +37,37 @@ function RecipeRow({ recipe, pantryItems, onPress }) {
         resizeMode="contain"
       />
       <View style={styles.recipeInfo}>
-        <Text style={styles.recipeName}>{recipe.name}</Text>
+        <Text style={styles.recipeName} numberOfLines={1}>{recipe.name}</Text>
         <Text style={styles.recipeMeta}>
           {recipe.method || "조리"} · {recipe.category || "레시피"}
-          {recipe.cookingTime ? ` · ${recipe.cookingTime}분` : ""}
+          {recipe.cookingTime ? ` · ${recipe.cookingTime}분` : ""} · {recipe.calories}kcal
         </Text>
-        <View style={styles.badges}>
-          <View style={[styles.badge, { backgroundColor: "#fff2ea" }]}>
-            <MaterialCommunityIcons
-              name="fire"
-              size={13}
-              color={colors.secondary}
-            />
-            <Text style={[styles.badgeText, { color: colors.secondary }]}>
-              {recipe.calories}kcal
+        {total ? (
+          <View style={styles.matchRow}>
+            <View style={styles.matchTrack}>
+              <View style={[styles.matchFill, { width: `${ratio * 100}%` }]} />
+            </View>
+            <Text style={styles.matchText}>
+              재료 {match.matched.length}/{total}
             </Text>
           </View>
-          <View style={styles.badge}>
-            <MaterialCommunityIcons
-              name="fridge-outline"
-              size={13}
-              color={colors.primaryDark}
-            />
-            <Text style={styles.badgeText}>{match.matched.length}개 보유</Text>
-          </View>
-          {match.missing.length ? (
-            <View style={[styles.badge, { backgroundColor: "#fff8e9" }]}>
-              <MaterialCommunityIcons
-                name="basket-outline"
-                size={13}
-                color={colors.warning}
-              />
-              <Text style={[styles.badgeText, { color: colors.warning }]}>
-                {match.missing.length}개 필요
-              </Text>
-            </View>
-          ) : null}
-        </View>
+        ) : null}
       </View>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={24}
-        color={colors.muted}
-      />
+      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
     </Pressable>
   );
 }
 
 export default function RecipesScreen({ navigation, route }) {
-  const { loading, recipes, pantryItems, recipeError, loadRecipes } =
-    useAppData();
+  const {
+    loading,
+    recipes,
+    pantryItems,
+    recipeError,
+    loadRecipes,
+    nutritionLogs,
+    avoidIngredients,
+  } = useAppData();
   const [keyword, setKeyword] = useState("");
   const [ingredient, setIngredient] = useState("");
   const [mode, setMode] = useState(
@@ -100,9 +87,22 @@ export default function RecipesScreen({ navigation, route }) {
   useEffect(() => { setPage(0); }, [keyword, ingredient, mode]);
   useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: true }); }, [page]);
 
+  const preferredWeights = useMemo(
+    () => buildPreferredIngredientWeights(nutritionLogs, recipes),
+    [nutritionLogs, recipes],
+  );
+
   const visibleRecipes = useMemo(
-    () => filterRecipes(recipes, { keyword, ingredient, pantryItems, sortByPantry: mode === "pantry" }),
-    [recipes, keyword, ingredient, pantryItems, mode],
+    () =>
+      filterRecipes(recipes, {
+        keyword,
+        ingredient,
+        pantryItems,
+        sortByPantry: mode === "pantry",
+        avoidIngredients,
+        preferredWeights,
+      }),
+    [recipes, keyword, ingredient, pantryItems, mode, avoidIngredients, preferredWeights],
   );
 
   const totalPages = Math.ceil(visibleRecipes.length / PAGE_SIZE);
@@ -118,36 +118,29 @@ export default function RecipesScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={globalStyles.title}>레시피</Text>
-          <Text style={globalStyles.subtitle}>
-            DB에 저장된 레시피를 메뉴명이나 재료로 검색합니다.
-          </Text>
+          <View style={globalStyles.between}>
+            <Text style={type.title}>레시피</Text>
+            <Text style={styles.countText}>총 {visibleRecipes.length.toLocaleString()}개</Text>
+          </View>
+          <Text style={type.subtitle}>메뉴명이나 재료로 DB에 저장된 레시피를 검색해보세요.</Text>
         </View>
 
-        <View style={styles.searchCard}>
+        <View style={styles.searchBlock}>
           <View style={styles.fieldWrap}>
-            <MaterialCommunityIcons
-              name="magnify"
-              size={20}
-              color={colors.muted}
-            />
+            <MaterialCommunityIcons name="magnify" size={19} color={colors.muted} />
             <Field
               value={keyword}
               onChangeText={setKeyword}
-              placeholder="메뉴명 검색"
+              placeholder="메뉴명으로 검색"
               style={styles.searchField}
             />
           </View>
           <View style={styles.fieldWrap}>
-            <MaterialCommunityIcons
-              name="carrot"
-              size={20}
-              color={colors.muted}
-            />
+            <MaterialCommunityIcons name="carrot" size={19} color={colors.muted} />
             <Field
               value={ingredient}
               onChangeText={setIngredient}
-              placeholder="재료 검색: 계란, 두부..."
+              placeholder="재료로 검색 (예: 계란, 두부)"
               style={styles.searchField}
             />
           </View>
@@ -156,10 +149,9 @@ export default function RecipesScreen({ navigation, route }) {
               label="전체"
               active={mode === "all"}
               onPress={() => setMode("all")}
-              icon="format-list-bulleted"
             />
             <Chip
-              label="내 재료 우선"
+              label="내 재료로 만들 수 있는 것 먼저"
               active={mode === "pantry"}
               onPress={() => setMode("pantry")}
               icon="fridge-outline"
@@ -167,12 +159,7 @@ export default function RecipesScreen({ navigation, route }) {
           </View>
         </View>
 
-        <View style={styles.countRow}>
-          <Text style={styles.countText}>총 {visibleRecipes.length}개의 레시피</Text>
-          {totalPages > 1 && (
-            <Text style={styles.countText}>{page + 1} / {totalPages} 페이지</Text>
-          )}
-        </View>
+        <View style={styles.divider} />
 
         <View style={styles.list}>
           {pageRecipes.map((recipe) => (
@@ -217,24 +204,24 @@ export default function RecipesScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   header: {
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 6,
+    gap: 6,
   },
-  searchCard: {
+  countText: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  searchBlock: {
     gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
   },
   fieldWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    paddingLeft: 12,
+    gap: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    paddingLeft: 14,
   },
   searchField: {
     flex: 1,
@@ -243,52 +230,43 @@ const styles = StyleSheet.create({
   },
   modeRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 2,
   },
-  countRow: {
-    marginTop: 18,
-    marginBottom: 8,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  countText: {
-    color: colors.textSoft,
-    fontSize: 12,
-    fontWeight: "800",
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
   },
   pagination: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
-    marginTop: 16,
+    marginTop: 4,
   },
   pageText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: "900",
+    fontWeight: "700",
     minWidth: 60,
     textAlign: "center",
   },
   list: {
-    gap: 12,
+    gap: 4,
   },
   recipeRow: {
-    minHeight: 104,
+    minHeight: 100,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 10,
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   image: {
     flexShrink: 0,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceAlt,
   },
   recipeInfo: {
@@ -297,32 +275,35 @@ const styles = StyleSheet.create({
   recipeName: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   recipeMeta: {
     color: colors.textSoft,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "500",
     marginTop: 4,
   },
-  badges: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 10,
-  },
-  badge: {
+  matchRow: {
+    marginTop: 9,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    gap: 8,
   },
-  badgeText: {
+  matchTrack: {
+    width: 64,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceAlt,
+    overflow: "hidden",
+  },
+  matchFill: {
+    height: "100%",
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  matchText: {
     color: colors.primaryDark,
-    fontSize: 11,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
