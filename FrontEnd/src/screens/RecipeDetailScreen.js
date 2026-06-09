@@ -338,21 +338,7 @@ export default function RecipeDetailScreen({ navigation, route }) {
 
   const matchedSet = useMemo(() => new Set(match.matched), [match.matched]);
 
-  const sectionedIngredients = useMemo(() => {
-    if (!recipe) return [];
-    const sections = [];
-    const sectionMap = new Map();
-    for (const ingredient of recipe.ingredients) {
-      const key = ingredient.section || "";
-      if (!sectionMap.has(key)) {
-        const group = { section: ingredient.section || null, ingredients: [] };
-        sectionMap.set(key, group);
-        sections.push(group);
-      }
-      sectionMap.get(key).ingredients.push(ingredient);
-    }
-    return sections;
-  }, [recipe]);
+  const sectionedIngredients = useMemo(() => recipe?.groups ?? [], [recipe]);
 
   if (!recipe) {
     return (
@@ -411,22 +397,22 @@ export default function RecipeDetailScreen({ navigation, route }) {
 
         <Card>
           <SectionHeader
-            title={`재료 ${recipe.ingredients.length}가지`}
+            title={`재료 ${recipe.totalIngredientCount ?? recipe.ingredients.length}가지`}
             icon="food-apple-outline"
           />
-          {sectionedIngredients.map(({ section, ingredients }) => (
-            <View key={section || "__none__"} style={styles.ingredientSection}>
-              {section ? (
-                <Text style={styles.ingredientTitle}>{section}</Text>
+          {sectionedIngredients.map((group) => (
+            <View key={String(group.groupId ?? "__none__")} style={styles.ingredientSection}>
+              {group.groupName ? (
+                <Text style={styles.ingredientTitle}>{group.groupName}</Text>
               ) : null}
               <View style={styles.ingredientWrap}>
-                {ingredients.map((ingredient) => {
-                  const has = matchedSet.has(ingredient.name);
-                  const amountLabel = extractAmountSuffix(ingredient.name, ingredient.amount);
+                {group.items.map((item) => {
+                  const has = matchedSet.has(item.originalName);
+                  const amountLabel = extractAmountSuffix(item.originalName, item.amountText);
                   return (
                     <Chip
-                      key={ingredient.name}
-                      label={ingredient.name}
+                      key={String(item.ingredientId)}
+                      label={item.originalName}
                       amount={amountLabel}
                       active={has}
                       icon={has ? "check" : "basket-plus-outline"}

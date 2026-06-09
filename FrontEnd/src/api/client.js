@@ -281,6 +281,22 @@ export function normalizeRecipe(raw) {
     matchedIngredients: raw.matchedIngredients || raw.matched_ingredients || [],
     missingIngredients: raw.missingIngredients || raw.missing_ingredients || [],
     missingCount: Number(raw.missingCount || raw.missing_count || 0),
+    groups: Array.isArray(raw.groups)
+      ? raw.groups.map((g) => ({
+          groupId: g.groupId ?? null,
+          groupName: g.groupName ?? null,
+          sortOrder: g.sortOrder ?? 0,
+          items: Array.isArray(g.items)
+            ? g.items.map((item) => ({
+                ingredientId: item.ingredientId,
+                originalName: item.originalName || "",
+                amountText: item.amountText || "",
+              }))
+            : [],
+        }))
+      : [],
+    totalIngredientCount:
+      raw.totalIngredientCount ?? raw.ingredients?.length ?? 0,
   };
 }
 
