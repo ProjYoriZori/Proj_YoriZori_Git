@@ -17,6 +17,8 @@ public record RecipeResponse(
         double matchRate,
         List<String> matchedIngredients,
         List<String> missingIngredients,
-        int missingCount
+        int missingCount,
+        List<RecipeIngredientGroupResponse> groups,
+        int totalIngredientCount
 ) {
 }

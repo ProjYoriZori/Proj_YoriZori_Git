@@ -22,15 +22,15 @@
 
 ## Summary
 
-| Area | Result | Notes |
-| --- | --- | --- |
-| Home | PASS | Main dashboard rendered after initial API calls. |
-| Recipes | PASS | Route rendered, search fields accepted input, recipe detail opened. |
-| Shopping | PASS | Temporary `CodexTestShopping` item was added, toggled, and deleted in UI state. |
-| Fridge | PASS | Temporary `CodexTestPantry` item was added, selected, and deleted in UI state. |
-| Nutrition | PASS | Temporary `CodexTestFood` item was added to the UI state. |
-| My Page | PASS | Profile fields accepted input. Save was not submitted to avoid overwriting existing profile data. |
-| Recipe Detail | PASS | First visible recipe detail rendered nutrition and ingredients. |
+| Area          | Result | Notes                                                                                             |
+| ------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| Home          | PASS   | Main dashboard rendered after initial API calls.                                                  |
+| Recipes       | PASS   | Route rendered, search fields accepted input, recipe detail opened.                               |
+| Shopping      | PASS   | Temporary `CodexTestShopping` item was added, toggled, and deleted in UI state.                   |
+| Fridge        | PASS   | Temporary `CodexTestPantry` item was added, selected, and deleted in UI state.                    |
+| Nutrition     | PASS   | Temporary `CodexTestFood` item was added to the UI state.                                         |
+| My Page       | PASS   | Profile fields accepted input. Save was not submitted to avoid overwriting existing profile data. |
+| Recipe Detail | PASS   | First visible recipe detail rendered nutrition and ingredients.                                   |
 
 ## Resolved Errors
 
