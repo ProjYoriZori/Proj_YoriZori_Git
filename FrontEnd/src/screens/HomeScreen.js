@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -9,6 +9,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Location from "expo-location";
+
+import { fetchCurrentWeather, weatherDescription } from "../api/weather";
 
 import {
   Card,
@@ -18,7 +21,7 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
-import { colors, globalStyles, type } from "../theme";
+import { colors, globalStyles, shadow, type } from "../theme";
 import { dateKey, sumNutrition } from "../utils/nutrition";
 import {
   buildPreferredIngredientWeights,
@@ -27,7 +30,43 @@ import {
   recommendedRecipes,
 } from "../utils/recipes";
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function WeatherCard({ weather, loading }) {
+  if (!loading && !weather) return null;
+
+  if (loading) {
+    return (
+      <View style={styles.weatherCard}>
+        <View style={styles.weatherSkeleton} />
+      </View>
+    );
+  }
+
+  const { label, icon } = weatherDescription(weather.skyCode, weather.ptyCode);
+  const hasRange = weather.tmn != null && weather.tmx != null;
+
+  return (
+    <View style={styles.weatherCard}>
+      <View style={styles.weatherLeft}>
+        <MaterialCommunityIcons name={icon} size={44} color={colors.primary} />
+        <View style={styles.weatherTempBlock}>
+          <Text style={styles.weatherTemp}>{weather.temp}°</Text>
+          <Text style={styles.weatherLabel}>{label}</Text>
+        </View>
+      </View>
+      <View style={styles.weatherRight}>
+        {hasRange && (
+          <Text style={styles.weatherRange}>
+            최저 {Math.round(weather.tmn)}° · 최고 {Math.round(weather.tmx)}°
+          </Text>
+        )}
+        {weather.humidity != null && (
+          <Text style={styles.weatherHumidity}>습도 {weather.humidity}%</Text>
+        )}
+      </View>
+    </View>
+  );
+}
 
 function Stat({ value, label, last }) {
   return (
@@ -60,7 +99,11 @@ function FeaturedRecipe({ recipe, onPress }) {
       <Image source={{ uri: recipe.imageUrl }} style={styles.featuredImage} resizeMode="cover" />
       <View style={styles.featuredScrim} />
       <View style={styles.featuredBody}>
-        <Text style={styles.featuredEyebrow}>오늘 만들어 볼까요</Text>
+        {recipe.category ? (
+          <View style={styles.featuredTag}>
+            <Text style={styles.featuredTagText}>{recipe.category}</Text>
+          </View>
+        ) : null}
         <Text style={styles.featuredName} numberOfLines={2}>{recipe.name}</Text>
         <Text style={styles.featuredMeta}>{recipe.method || "조리"} · {recipe.calories}kcal</Text>
       </View>
@@ -87,7 +130,6 @@ function CarouselTile({ recipe, pantryItems, onPress }) {
 export default function HomeScreen({ navigation }) {
   const {
     loading,
-    backendOnline,
     recipes,
     pantryItems,
     nutritionLogs,
@@ -95,10 +137,26 @@ export default function HomeScreen({ navigation }) {
     avoidIngredients,
   } = useAppData();
   const [selectedSeasonal, setSelectedSeasonal] = useState(null);
+  const [weather, setWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const dateLabel = `${month}월 ${now.getDate()}일 ${WEEKDAYS[now.getDay()]}요일`;
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") { setWeatherLoading(false); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const data = await fetchCurrentWeather(loc.coords.latitude, loc.coords.longitude);
+        setWeather(data);
+      } catch {
+        // 날씨 로드 실패 시 카드를 조용히 숨김
+      } finally {
+        setWeatherLoading(false);
+      }
+    })();
+  }, []);
+
+  const month = new Date().getMonth() + 1;
   const selectedPantry = pantryItems.filter((item) => item.isSelected);
   const todayLogs = nutritionLogs.filter(
     (log) => log.date === dateKey(new Date()),
@@ -153,82 +211,40 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={globalStyles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Masthead: typographic, no boxed stat grid up top */}
-        <View style={styles.masthead}>
-          <View style={styles.mastheadTop}>
-            <Text style={styles.dateLabel}>{dateLabel}</Text>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: backendOnline ? colors.primary : colors.warning }]} />
-              <Text style={styles.statusLabel}>{backendOnline ? "백엔드 연결됨" : "목업 데이터"}</Text>
-            </View>
+        {/* App Header */}
+        <View style={styles.appHeader}>
+          <View style={styles.logoRow}>
+            <MaterialCommunityIcons name="chef-hat" size={28} color={colors.primary} />
+            <Text style={styles.logoText}>
+              요리<Text style={styles.logoAccent}>조리</Text>
+            </Text>
           </View>
-          <Text style={type.display}>오늘 뭐 먹지?</Text>
-          <Text style={styles.mastheadCopy}>
-            냉장고 속 재료를 고르면, 그 재료로 바로 만들 수 있는 메뉴부터 보여드려요.
-          </Text>
+          <Pressable
+            onPress={() => navigation.navigate("Recipes")}
+            style={({ pressed }) => [styles.searchBtn, pressed && { opacity: 0.65 }]}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons name="magnify" size={22} color={colors.text} />
+          </Pressable>
         </View>
 
-        {/* Featured pick: one large editorial card instead of starting with a stat grid */}
+        {/* Weather */}
+        <WeatherCard weather={weather} loading={weatherLoading} />
+
+        {/* Featured */}
         <FeaturedRecipe
           recipe={featuredRecipe}
           onPress={() => featuredRecipe && navigation.navigate("RecipeDetail", { recipeId: featuredRecipe.id })}
         />
 
-        {/* Inline numeric strip — same data the old 3-box grid showed, but reads as one line */}
-        <View style={styles.statRow}>
+        {/* Stats */}
+        <Card flat style={styles.statRow}>
           <Stat value={pantryItems.length} label="보유 재료" />
           <Stat value={selectedPantry.length} label="선택한 재료" />
           <Stat value={todayLogs.length} label="오늘 식사 기록" last />
-        </View>
+        </Card>
 
-        {/* Seasonal strip: flat band, no card border, horizontal scroll */}
-        <View>
-          <SectionHeader title={`${month}월 제철 식재료`} icon="leaf" />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipList}
-          >
-            {seasonalIngredients.length ? (
-              seasonalIngredients.map((item) => (
-                <Chip
-                  key={`${item.month}-${item.name}`}
-                  label={item.name}
-                  active={selectedSeasonal === item.name}
-                  onPress={() =>
-                    setSelectedSeasonal(
-                      selectedSeasonal === item.name ? null : item.name,
-                    )
-                  }
-                  icon="sprout"
-                />
-              ))
-            ) : (
-              <Text style={type.label}>제철 식재료 정보를 불러오지 못했어요.</Text>
-            )}
-          </ScrollView>
-          {selectedSeasonal ? (
-            <View style={styles.seasonalResult}>
-              <Text style={styles.miniTitle}>{selectedSeasonal}로 만들 수 있는 메뉴</Text>
-              {seasonalRecipes.length ? (
-                seasonalRecipes.slice(0, 2).map((recipe) => (
-                  <Pressable
-                    key={recipe.id}
-                    onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
-                    style={({ pressed }) => [styles.compactRecipe, pressed && { opacity: 0.7 }]}
-                  >
-                    <Text style={styles.compactRecipeName}>{recipe.name}</Text>
-                    <Text style={styles.compactRecipeMeta}>{recipe.calories}kcal · {recipe.category}</Text>
-                  </Pressable>
-                ))
-              ) : (
-                <Text style={type.label}>아직 연결된 레시피가 없어요.</Text>
-              )}
-            </View>
-          ) : null}
-        </View>
-
-        {/* Pantry: light flat card, content as inline tags rather than a boxed grid */}
+        {/* 내 냉장고 */}
         <Card flat>
           <SectionHeader
             title="내 냉장고"
@@ -257,36 +273,107 @@ export default function HomeScreen({ navigation }) {
           )}
         </Card>
 
-        {/* Expiring-soon tie-in: surfaces the differentiation feature only when relevant */}
+        {/* 오늘의 추천 — 냉장고 바로 아래 */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHead}>
+            <SectionHeader
+              title={selectedPantry.length ? "내 재료로 만들 수 있는 메뉴" : "오늘의 추천"}
+              icon="chef-hat"
+              actionLabel="더보기"
+              onAction={() => navigation.navigate("Recipes")}
+            />
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.sectionCarousel}
+          >
+            {carouselRecipes.map((recipe) => (
+              <CarouselTile
+                key={recipe.id}
+                recipe={recipe}
+                pantryItems={pantryItems}
+                onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* 제철 식재료 */}
+        <Card flat>
+          <SectionHeader title={`${month}월 제철 식재료`} icon="leaf" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipList}
+          >
+            {seasonalIngredients.length ? (
+              seasonalIngredients.map((item) => (
+                <Chip
+                  key={`${item.month}-${item.name}`}
+                  label={item.name}
+                  active={selectedSeasonal === item.name}
+                  onPress={() => setSelectedSeasonal(selectedSeasonal === item.name ? null : item.name)}
+                  icon="sprout"
+                />
+              ))
+            ) : (
+              <Text style={type.label}>제철 식재료 정보를 불러오지 못했어요.</Text>
+            )}
+          </ScrollView>
+          {selectedSeasonal ? (
+            <View style={styles.seasonalResult}>
+              <Text style={styles.miniTitle}>{selectedSeasonal}로 만들 수 있는 메뉴</Text>
+              {seasonalRecipes.length ? (
+                seasonalRecipes.slice(0, 2).map((recipe) => (
+                  <Pressable
+                    key={recipe.id}
+                    onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
+                    style={({ pressed }) => [styles.compactRecipe, pressed && { opacity: 0.7 }]}
+                  >
+                    <Text style={styles.compactRecipeName}>{recipe.name}</Text>
+                    <Text style={styles.compactRecipeMeta}>{recipe.calories}kcal · {recipe.category}</Text>
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={type.label}>아직 연결된 레시피가 없어요.</Text>
+              )}
+            </View>
+          ) : null}
+        </Card>
+
+        {/* 유통기한 임박 */}
         {expiringSoonItems.length ? (
-          <View>
-            <SectionHeader title="유통기한이 다가와요 · 이걸로 만들어보세요" icon="clock-alert-outline" />
-            <Text style={styles.expiryHint}>
-              {expiringSoonItems.slice(0, 3).map((item) => item.name).join(", ")}
-              {expiringSoonItems.length > 3 ? ` 외 ${expiringSoonItems.length - 3}개` : ""}의 소비기한이 얼마 남지 않았어요.
-            </Text>
-            {expiringRecipes.length ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.carousel}
-              >
-                {expiringRecipes.map((recipe) => (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHead}>
+              <SectionHeader title="유통기한이 다가와요" icon="clock-alert-outline" />
+              <Text style={styles.expiryHint}>
+                {expiringSoonItems.slice(0, 3).map((item) => item.name).join(", ")}
+                {expiringSoonItems.length > 3 ? ` 외 ${expiringSoonItems.length - 3}개` : ""}의 소비기한이 얼마 남지 않았어요.
+              </Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sectionCarousel}
+            >
+              {expiringRecipes.length ? (
+                expiringRecipes.map((recipe) => (
                   <CarouselTile
                     key={recipe.id}
                     recipe={recipe}
                     pantryItems={pantryItems}
                     onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
                   />
-                ))}
-              </ScrollView>
-            ) : (
-              <Text style={type.label}>아직 추천할 레시피를 찾지 못했어요.</Text>
-            )}
+                ))
+              ) : (
+                <Text style={[type.label, { paddingBottom: 18 }]}>아직 추천할 레시피를 찾지 못했어요.</Text>
+              )}
+            </ScrollView>
           </View>
         ) : null}
 
-        {/* Nutrition: horizontal bars instead of four identical icon boxes */}
+        {/* 오늘 섭취 요약 */}
         <Card>
           <SectionHeader
             title="오늘 섭취 요약"
@@ -305,30 +392,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </Card>
 
-        {/* Recommended recipes: horizontal carousel for a different rhythm than the wrapped grid in Recipes */}
-        <View>
-          <SectionHeader
-            title={selectedPantry.length ? "내 재료로 만들 수 있는 메뉴" : "오늘의 추천"}
-            icon="chef-hat"
-            actionLabel="더보기"
-            onAction={() => navigation.navigate("Recipes")}
-          />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.carousel}
-          >
-            {carouselRecipes.map((recipe) => (
-              <CarouselTile
-                key={recipe.id}
-                recipe={recipe}
-                pantryItems={pantryItems}
-                onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
-              />
-            ))}
-          </ScrollView>
-        </View>
-
         <PrimaryButton
           label="레시피 둘러보기"
           icon="magnify"
@@ -341,41 +404,88 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  masthead: {
-    paddingTop: 6,
-    gap: 10,
-  },
-  mastheadTop: {
+  weatherCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  dateLabel: {
+  weatherSkeleton: {
+    flex: 1,
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: colors.border,
+    opacity: 0.6,
+  },
+  weatherLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  weatherTempBlock: {
+    gap: 2,
+  },
+  weatherTemp: {
+    color: colors.text,
+    fontSize: 36,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    lineHeight: 40,
+  },
+  weatherLabel: {
     color: colors.textSoft,
     fontSize: 13,
     fontWeight: "600",
   },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  weatherRight: {
+    alignItems: "flex-end",
+    gap: 4,
   },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+  weatherRange: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
   },
-  statusLabel: {
+  weatherHumidity: {
     color: colors.textSoft,
     fontSize: 12,
     fontWeight: "600",
   },
-  mastheadCopy: {
-    color: colors.textSoft,
-    fontSize: 15,
-    fontWeight: "500",
-    lineHeight: 22,
-    maxWidth: 320,
+
+  appHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  logoText: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
+  logoAccent: {
+    color: colors.primary,
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   featured: {
@@ -397,12 +507,19 @@ const styles = StyleSheet.create({
     right: 20,
     bottom: 18,
   },
-  featuredEyebrow: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 12,
+  featuredTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  featuredTagText: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.3,
-    marginBottom: 4,
   },
   featuredName: {
     color: colors.surface,
@@ -415,6 +532,25 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.82)",
     fontSize: 13,
     fontWeight: "600",
+  },
+
+  sectionCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+    ...shadow,
+  },
+  sectionHead: {
+    padding: 18,
+    paddingBottom: 4,
+  },
+  sectionCarousel: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 18,
+    gap: 12,
   },
 
   statRow: {
@@ -553,10 +689,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
 
-  carousel: {
-    gap: 12,
-    paddingRight: 8,
-  },
   tile: {
     width: 152,
   },

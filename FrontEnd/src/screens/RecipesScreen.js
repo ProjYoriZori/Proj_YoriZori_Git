@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { Chip, EmptyState, Field, IconButton, LoadingState } from "../components/ui";
+import { Card, Chip, EmptyState, Field, IconButton, LoadingState } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
 import { colors, globalStyles, type } from "../theme";
 import {
@@ -125,7 +125,7 @@ export default function RecipesScreen({ navigation, route }) {
           <Text style={type.subtitle}>메뉴명이나 재료로 DB에 저장된 레시피를 검색해보세요.</Text>
         </View>
 
-        <View style={styles.searchBlock}>
+        <Card>
           <View style={styles.fieldWrap}>
             <MaterialCommunityIcons name="magnify" size={19} color={colors.muted} />
             <Field
@@ -135,7 +135,7 @@ export default function RecipesScreen({ navigation, route }) {
               style={styles.searchField}
             />
           </View>
-          <View style={styles.fieldWrap}>
+          <View style={[styles.fieldWrap, { marginTop: 10 }]}>
             <MaterialCommunityIcons name="carrot" size={19} color={colors.muted} />
             <Field
               value={ingredient}
@@ -145,11 +145,7 @@ export default function RecipesScreen({ navigation, route }) {
             />
           </View>
           <View style={styles.modeRow}>
-            <Chip
-              label="전체"
-              active={mode === "all"}
-              onPress={() => setMode("all")}
-            />
+            <Chip label="전체" active={mode === "all"} onPress={() => setMode("all")} />
             <Chip
               label="내 재료로 만들 수 있는 것 먼저"
               active={mode === "pantry"}
@@ -157,11 +153,9 @@ export default function RecipesScreen({ navigation, route }) {
               icon="fridge-outline"
             />
           </View>
-        </View>
+        </Card>
 
-        <View style={styles.divider} />
-
-        <View style={styles.list}>
+        <Card style={styles.listCard}>
           {pageRecipes.map((recipe) => (
             <RecipeRow
               key={recipe.id}
@@ -170,33 +164,31 @@ export default function RecipesScreen({ navigation, route }) {
               onPress={() => navigation.navigate("RecipeDetail", { recipeId: recipe.id })}
             />
           ))}
-        </View>
-
-        {!visibleRecipes.length ? (
-          <EmptyState
-            icon={recipeError ? "database-alert-outline" : "magnify-close"}
-            title={recipeError ? "레시피 API 연결 실패" : "검색 결과가 없어요"}
-            body={recipeError || "DB에 저장된 레시피가 없거나 검색어와 일치하는 레시피가 없습니다."}
-          />
-        ) : null}
-
-        {totalPages > 1 ? (
-          <View style={styles.pagination}>
-            <IconButton
-              icon="chevron-left"
-              onPress={() => setPage((p) => Math.max(0, p - 1))}
-              backgroundColor={page === 0 ? colors.border : colors.surfaceAlt}
-              color={page === 0 ? colors.muted : colors.text}
+          {!visibleRecipes.length ? (
+            <EmptyState
+              icon={recipeError ? "database-alert-outline" : "magnify-close"}
+              title={recipeError ? "레시피 API 연결 실패" : "검색 결과가 없어요"}
+              body={recipeError || "DB에 저장된 레시피가 없거나 검색어와 일치하는 레시피가 없습니다."}
             />
-            <Text style={styles.pageText}>{page + 1} / {totalPages}</Text>
-            <IconButton
-              icon="chevron-right"
-              onPress={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              backgroundColor={page === totalPages - 1 ? colors.border : colors.surfaceAlt}
-              color={page === totalPages - 1 ? colors.muted : colors.text}
-            />
-          </View>
-        ) : null}
+          ) : null}
+          {totalPages > 1 ? (
+            <View style={styles.pagination}>
+              <IconButton
+                icon="chevron-left"
+                onPress={() => setPage((p) => Math.max(0, p - 1))}
+                backgroundColor={page === 0 ? colors.border : colors.surfaceAlt}
+                color={page === 0 ? colors.muted : colors.text}
+              />
+              <Text style={styles.pageText}>{page + 1} / {totalPages}</Text>
+              <IconButton
+                icon="chevron-right"
+                onPress={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                backgroundColor={page === totalPages - 1 ? colors.border : colors.surfaceAlt}
+                color={page === totalPages - 1 ? colors.muted : colors.text}
+              />
+            </View>
+          ) : null}
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -211,9 +203,6 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontSize: 13,
     fontWeight: "600",
-  },
-  searchBlock: {
-    gap: 10,
   },
   fieldWrap: {
     flexDirection: "row",
@@ -232,18 +221,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 2,
+    marginTop: 10,
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
+  listCard: {
+    padding: 0,
+    overflow: "hidden",
   },
   pagination: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
-    marginTop: 4,
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   pageText: {
     color: colors.text,
@@ -261,6 +252,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     paddingVertical: 14,
+    paddingHorizontal: 18,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
