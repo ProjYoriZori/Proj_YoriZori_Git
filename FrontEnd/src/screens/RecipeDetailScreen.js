@@ -98,7 +98,7 @@ function TimerModal({
 
           {isIdle ? (
             <View style={styles.inputRow}>
-              <View style={styles.inputWrap}>
+              <View style={styles.inputGroup}>
                 <Field
                   value={inputMin}
                   onChangeText={setInputMin}
@@ -109,7 +109,7 @@ function TimerModal({
                 <Text style={styles.inputUnit}>분</Text>
               </View>
               <Text style={styles.inputColon}>:</Text>
-              <View style={styles.inputWrap}>
+              <View style={styles.inputGroup}>
                 <Field
                   value={inputSec}
                   onChangeText={(v) => {
@@ -150,7 +150,11 @@ function TimerModal({
             )}
           </View>
 
-          <View style={styles.quickTimer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickTimerList}
+          >
             {[{ min: 1, sec: 0 }, { min: 3, sec: 0 }, { min: 5, sec: 0 }, { min: 10, sec: 0 }, { min: 0, sec: 30 }].map((t) => (
               <Chip
                 key={`${t.min}:${t.sec}`}
@@ -159,7 +163,7 @@ function TimerModal({
                 icon="timer-outline"
               />
             ))}
-          </View>
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -733,46 +737,48 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0,
   },
-  timerInput: {
-    textAlign: "center",
-    marginBottom: 12,
-  },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 14,
   },
-  inputWrap: {
+  inputGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    flex: 1,
+    gap: 8,
   },
   timerInputField: {
-    flex: 1,
+    width: 76,
+    height: 52,
     textAlign: "center",
+    fontSize: 22,
+    fontWeight: "800",
+    borderWidth: 0,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
   },
   inputUnit: {
     color: colors.textSoft,
     fontSize: 15,
     fontWeight: "800",
+    width: 18,
   },
   inputColon: {
-    color: colors.text,
-    fontSize: 22,
+    color: colors.muted,
+    fontSize: 26,
     fontWeight: "700",
+    paddingHorizontal: 2,
   },
   timerActions: {
     flexDirection: "row",
     gap: 10,
   },
-  quickTimer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  quickTimerList: {
     gap: 8,
-    marginTop: 12,
+    paddingTop: 12,
+    paddingBottom: 2,
   },
   sheet: {
     width: "100%",
