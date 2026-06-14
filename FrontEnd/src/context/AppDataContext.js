@@ -288,11 +288,11 @@ export function AppDataProvider({ children }) {
           setBackendOnline(false);
         }
       },
-      addNutritionLogFromRecipe: async (recipe, mealType = "점심") => {
+      addNutritionLogFromRecipe: async (recipe, mealType = "점심", date = new Date()) => {
         const log = {
           id: makeId("log"),
           recipeId: recipe.id,
-          date: dateKey(new Date()),
+          date: dateKey(date),
           mealType,
           servingCount: 1,
           foodName: recipe.name,

@@ -33,6 +33,7 @@ import { api } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { colors, globalStyles, shadow } from "../theme";
 import { getMatchInfo } from "../utils/recipes";
+import { addDays, dateKey, formatKoreanDate } from "../utils/nutrition";
 
 const mealTypes = ["아침", "점심", "저녁", "간식"];
 
@@ -185,6 +186,7 @@ export default function RecipeDetailScreen({ navigation, route }) {
   const { showToast, ToastContainer } = useToast();
   const [mealType, setMealType] = useState("점심");
   const [logVisible, setLogVisible] = useState(false);
+  const [logDate, setLogDate] = useState(new Date());
   const [timerVisible, setTimerVisible] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
@@ -361,9 +363,14 @@ export default function RecipeDetailScreen({ navigation, route }) {
     );
   }
 
-  const logMeal = async () => {
-    await addNutritionLogFromRecipe(recipe, mealType);
+  const closeLogModal = () => {
     setLogVisible(false);
+    setLogDate(new Date());
+  };
+
+  const logMeal = async () => {
+    await addNutritionLogFromRecipe(recipe, mealType, logDate);
+    closeLogModal();
   };
 
   return (
@@ -517,18 +524,31 @@ export default function RecipeDetailScreen({ navigation, route }) {
         visible={logVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setLogVisible(false)}
+        onRequestClose={closeLogModal}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setLogVisible(false)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={closeLogModal}>
           <Pressable style={[styles.sheet, { paddingBottom: 28 + insets.bottom }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.modalTitle}>먹은 음식으로 기록</Text>
             <Text style={globalStyles.subtitle}>
               {recipe.name} · {recipe.calories}kcal
             </Text>
+            <View style={styles.logDateRow}>
+              <IconButton
+                icon="chevron-left"
+                size={34}
+                onPress={() => setLogDate((d) => addDays(d, -1))}
+              />
+              <View style={{ alignItems: "center" }}>
+                <Text style={styles.logDateText}>{formatKoreanDate(logDate)}</Text>
+                <Text style={styles.logDateKey}>{dateKey(logDate)}</Text>
+              </View>
+              <IconButton
+                icon="chevron-right"
+                size={34}
+                onPress={() => setLogDate((d) => addDays(d, 1))}
+              />
+            </View>
             <View style={styles.mealGrid}>
               {mealTypes.map((type) => (
                 <Chip
@@ -804,6 +824,27 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     marginVertical: 18,
+  },
+  logDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 4,
+  },
+  logDateText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  logDateKey: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
   },
   backRow: {
     padding: 18,
