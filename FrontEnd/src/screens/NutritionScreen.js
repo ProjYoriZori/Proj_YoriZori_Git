@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -25,7 +26,7 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
-import { api } from "../api/client";
+import { api, normalizeNutritionLog } from "../api/client";
 import { colors, globalStyles } from "../theme";
 import {
   addDays,
@@ -409,32 +410,79 @@ export default function NutritionScreen() {
   const insets = useSafeAreaInsets();
   const {
     loading,
-    nutritionLogs,
     profile,
-    deleteNutritionLog,
     customFoods,
     addCustomFood,
     deleteCustomFood,
-    addNutritionLogFromCustomFood,
   } = useAppData();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [dateLogs, setDateLogs] = useState([]);
+  const [dateLoading, setDateLoading] = useState(false);
   const [foodModalVisible, setFoodModalVisible] = useState(false);
   const [editingFood, setEditingFood] = useState(null);
   const [mealPickerFood, setMealPickerFood] = useState(null);
   const selectedKey = dateKey(selectedDate);
-  const logs = nutritionLogs.filter((log) => log.date === selectedKey);
-  const totals = useMemo(() => sumNutrition(logs), [logs]);
+
+  const refreshDateLogs = useCallback(async (date) => {
+    setDateLoading(true);
+    setDateLogs([]);
+    try {
+      const payload = await api.getDailyNutritionSummary({ date: dateKey(date) });
+      const meals = Array.isArray(payload?.meals) ? payload.meals : [];
+      setDateLogs(meals.map(normalizeNutritionLog));
+    } catch {
+      setDateLogs([]);
+    } finally {
+      setDateLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshDateLogs(selectedDate);
+    }, [selectedDate, refreshDateLogs]),
+  );
+
+  const handleDeleteLog = useCallback(async (id) => {
+    setDateLogs((logs) => logs.filter((log) => log.id !== id));
+    try {
+      await api.deleteNutritionLog(id);
+    } catch {
+      refreshDateLogs(selectedDate);
+    }
+  }, [selectedDate, refreshDateLogs]);
+
+  const handleAddFromCustomFood = useCallback(async (food, mealType) => {
+    try {
+      const created = await api.createNutritionLog({
+        customFoodName: food.name,
+        mealDate: dateKey(selectedDate),
+        mealTime: mealType,
+        multiplier: 1,
+        calories: food.calories,
+        carbs: food.carbs,
+        protein: food.protein,
+        fat: food.fat,
+        sodium: food.sodium,
+      });
+      setDateLogs((logs) => [created, ...logs]);
+    } catch {
+      refreshDateLogs(selectedDate);
+    }
+  }, [selectedDate, refreshDateLogs]);
+
+  const totals = useMemo(() => sumNutrition(dateLogs), [dateLogs]);
   const dri = useMemo(() => calculateDRI(profile), [profile]);
 
   const grouped = useMemo(
     () =>
-      logs.reduce((acc, log) => {
+      dateLogs.reduce((acc, log) => {
         const key = log.mealType || "기타";
         if (!acc[key]) acc[key] = [];
         acc[key].push(log);
         return acc;
       }, {}),
-    [logs],
+    [dateLogs],
   );
 
   if (loading) return <LoadingState />;
@@ -569,7 +617,13 @@ export default function NutritionScreen() {
 
         <Card>
           <SectionHeader title="먹은 음식 목록" icon="silverware-fork-knife" />
-          {logs.length ? (
+          {dateLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primaryDark}
+              style={{ marginVertical: 16 }}
+            />
+          ) : dateLogs.length ? (
             Object.entries(grouped).map(([mealType, items]) => (
               <View key={mealType} style={styles.mealGroup}>
                 <Text style={styles.mealTitle}>{mealType}</Text>
@@ -577,7 +631,7 @@ export default function NutritionScreen() {
                   <MealLog
                     key={log.id}
                     log={log}
-                    onDelete={deleteNutritionLog}
+                    onDelete={handleDeleteLog}
                   />
                 ))}
               </View>
@@ -601,15 +655,15 @@ export default function NutritionScreen() {
       <MealTypePickerModal
         food={mealPickerFood}
         onClose={() => setMealPickerFood(null)}
-        onConfirm={(food, mealType) => addNutritionLogFromCustomFood(food, mealType)}
+        onConfirm={handleAddFromCustomFood}
         bottomInset={insets.bottom}
       />
       <EditFoodModal
         food={editingFood}
         onClose={() => setEditingFood(null)}
         onSave={async (id, form) => {
-          await deleteCustomFood(id);
           await addCustomFood(form);
+          await deleteCustomFood(id);
         }}
         onDelete={deleteCustomFood}
         bottomInset={insets.bottom}

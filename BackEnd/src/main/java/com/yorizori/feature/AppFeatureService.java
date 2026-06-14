@@ -347,8 +347,11 @@ public class AppFeatureService {
         if (trimmed.toLowerCase(Locale.ROOT).endsWith(".json")) {
             return true;
         }
+        // Only check filesystem for absolute paths to avoid misclassifying API keys
+        // (short API key strings like "AIzaSy..." must not be tested for file existence)
         try {
-            return Files.exists(Path.of(trimmed));
+            Path path = Path.of(trimmed);
+            return path.isAbsolute() && Files.exists(path);
         } catch (Exception ignored) {
             return false;
         }
