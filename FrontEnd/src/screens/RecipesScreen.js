@@ -73,6 +73,7 @@ export default function RecipesScreen({ navigation, route }) {
   const [mode, setMode] = useState(
     route?.params?.sortByPantry ? "pantry" : "all",
   );
+  const [timeFilter, setTimeFilter] = useState("all");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
   const scrollRef = useRef(null);
@@ -84,7 +85,7 @@ export default function RecipesScreen({ navigation, route }) {
     return () => clearTimeout(handle);
   }, [keyword, ingredient, loadRecipes]);
 
-  useEffect(() => { setPage(0); }, [keyword, ingredient, mode]);
+  useEffect(() => { setPage(0); }, [keyword, ingredient, mode, timeFilter]);
   useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: true }); }, [page]);
 
   const preferredWeights = useMemo(
@@ -92,18 +93,25 @@ export default function RecipesScreen({ navigation, route }) {
     [nutritionLogs, recipes],
   );
 
-  const visibleRecipes = useMemo(
-    () =>
-      filterRecipes(recipes, {
-        keyword,
-        ingredient,
-        pantryItems,
-        sortByPantry: mode === "pantry",
-        avoidIngredients,
-        preferredWeights,
-      }),
-    [recipes, keyword, ingredient, pantryItems, mode, avoidIngredients, preferredWeights],
-  );
+  const visibleRecipes = useMemo(() => {
+    const base = filterRecipes(recipes, {
+      keyword,
+      ingredient,
+      pantryItems,
+      sortByPantry: mode === "pantry",
+      avoidIngredients,
+      preferredWeights,
+    });
+    if (timeFilter === "all") return base;
+    return base.filter((r) => {
+      const t = r.cookingTime;
+      if (!t) return false;
+      if (timeFilter === "30") return t <= 30;
+      if (timeFilter === "60") return t <= 60;
+      if (timeFilter === "60+") return t > 60;
+      return true;
+    });
+  }, [recipes, keyword, ingredient, pantryItems, mode, avoidIngredients, preferredWeights, timeFilter]);
 
   const totalPages = Math.ceil(visibleRecipes.length / PAGE_SIZE);
   const pageRecipes = visibleRecipes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -152,6 +160,22 @@ export default function RecipesScreen({ navigation, route }) {
               onPress={() => setMode("pantry")}
               icon="fridge-outline"
             />
+          </View>
+          <View style={styles.modeRow}>
+            {[
+              { key: "all", label: "전체 시간" },
+              { key: "30", label: "30분 이내", icon: "clock-fast" },
+              { key: "60", label: "1시간 이내", icon: "clock-outline" },
+              { key: "60+", label: "1시간 초과", icon: "clock-alert-outline" },
+            ].map(({ key, label, icon }) => (
+              <Chip
+                key={key}
+                label={label}
+                active={timeFilter === key}
+                onPress={() => setTimeFilter(key)}
+                icon={icon}
+              />
+            ))}
           </View>
         </Card>
 

@@ -288,11 +288,11 @@ export function AppDataProvider({ children }) {
           setBackendOnline(false);
         }
       },
-      addNutritionLogFromRecipe: async (recipe, mealType = "점심") => {
+      addNutritionLogFromRecipe: async (recipe, mealType = "점심", date = new Date()) => {
         const log = {
           id: makeId("log"),
           recipeId: recipe.id,
-          date: dateKey(new Date()),
+          date: dateKey(date),
           mealType,
           servingCount: 1,
           foodName: recipe.name,
@@ -401,14 +401,17 @@ export function AppDataProvider({ children }) {
             items.map((existing) => (existing.id === item.id ? created : existing)),
           );
         } catch {
+          setAvoidIngredients((items) => items.filter((i) => i.id !== item.id));
           setBackendOnline(false);
         }
       },
       removeAvoidIngredient: async (id) => {
+        const removed = avoidIngredients.find((item) => item.id === id);
         setAvoidIngredients((items) => items.filter((item) => item.id !== id));
         try {
           await api.removeAvoidIngredient(id);
         } catch {
+          if (removed) setAvoidIngredients((items) => [removed, ...items]);
           setBackendOnline(false);
         }
       },

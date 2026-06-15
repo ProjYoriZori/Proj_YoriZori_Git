@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -25,7 +26,7 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { useAppData } from "../context/AppDataContext";
-import { api } from "../api/client";
+import { api, normalizeNutritionLog } from "../api/client";
 import { colors, globalStyles } from "../theme";
 import {
   addDays,
@@ -405,36 +406,160 @@ function AddFoodModal({ visible, onClose, onSubmit, bottomInset = 0 }) {
   );
 }
 
+const MONTH_NAMES = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+const DAY_NAMES = ["일","월","화","수","목","금","토"];
+
+function DatePickerModal({ visible, selectedDate, onClose, onSelect }) {
+  const today = useMemo(() => new Date(), []);
+  const todayKey = dateKey(today);
+  const selectedKey = dateKey(selectedDate);
+
+  const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
+
+  React.useEffect(() => {
+    if (visible) {
+      setViewYear(selectedDate.getFullYear());
+      setViewMonth(selectedDate.getMonth());
+    }
+  }, [visible, selectedDate]);
+
+  const cells = useMemo(() => {
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const arr = Array(firstDay).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) arr.push(d);
+    while (arr.length % 7 !== 0) arr.push(null);
+    return arr;
+  }, [viewYear, viewMonth]);
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
+    else setViewMonth((m) => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
+    else setViewMonth((m) => m + 1);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.calSheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.calMonthRow}>
+            <IconButton icon="chevron-left" onPress={prevMonth} />
+            <Text style={styles.calMonthTitle}>{viewYear}년 {MONTH_NAMES[viewMonth]}</Text>
+            <IconButton icon="chevron-right" onPress={nextMonth} />
+          </View>
+          <View style={styles.calDayNames}>
+            {DAY_NAMES.map((d) => (
+              <Text key={d} style={[styles.calDayName, d === "일" && { color: colors.danger }]}>{d}</Text>
+            ))}
+          </View>
+          <View style={styles.calGrid}>
+            {cells.map((day, idx) => {
+              if (!day) return <View key={idx} style={styles.calCell} />;
+              const cellKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const isToday = cellKey === todayKey;
+              const isSelected = cellKey === selectedKey;
+              return (
+                <Pressable
+                  key={idx}
+                  style={[styles.calCell, isSelected && styles.calCellSelected, isToday && !isSelected && styles.calCellToday]}
+                  onPress={() => { onSelect(new Date(viewYear, viewMonth, day)); onClose(); }}
+                >
+                  <Text style={[styles.calDay, isSelected && styles.calDaySelected, isToday && !isSelected && styles.calDayToday]}>
+                    {day}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function NutritionScreen() {
   const insets = useSafeAreaInsets();
   const {
     loading,
-    nutritionLogs,
     profile,
-    deleteNutritionLog,
     customFoods,
     addCustomFood,
     deleteCustomFood,
-    addNutritionLogFromCustomFood,
   } = useAppData();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [dateLogs, setDateLogs] = useState([]);
+  const [dateLoading, setDateLoading] = useState(false);
   const [foodModalVisible, setFoodModalVisible] = useState(false);
   const [editingFood, setEditingFood] = useState(null);
   const [mealPickerFood, setMealPickerFood] = useState(null);
   const selectedKey = dateKey(selectedDate);
-  const logs = nutritionLogs.filter((log) => log.date === selectedKey);
-  const totals = useMemo(() => sumNutrition(logs), [logs]);
+
+  const refreshDateLogs = useCallback(async (date) => {
+    setDateLoading(true);
+    setDateLogs([]);
+    try {
+      const payload = await api.getDailyNutritionSummary({ date: dateKey(date) });
+      const meals = Array.isArray(payload?.meals) ? payload.meals : [];
+      setDateLogs(meals.map(normalizeNutritionLog));
+    } catch {
+      setDateLogs([]);
+    } finally {
+      setDateLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshDateLogs(selectedDate);
+    }, [selectedDate, refreshDateLogs]),
+  );
+
+  const handleDeleteLog = useCallback(async (id) => {
+    setDateLogs((logs) => logs.filter((log) => log.id !== id));
+    try {
+      await api.deleteNutritionLog(id);
+    } catch {
+      refreshDateLogs(selectedDate);
+    }
+  }, [selectedDate, refreshDateLogs]);
+
+  const handleAddFromCustomFood = useCallback(async (food, mealType) => {
+    try {
+      const created = await api.createNutritionLog({
+        customFoodName: food.name,
+        mealDate: dateKey(selectedDate),
+        mealTime: mealType,
+        multiplier: 1,
+        calories: food.calories,
+        carbs: food.carbs,
+        protein: food.protein,
+        fat: food.fat,
+        sodium: food.sodium,
+      });
+      setDateLogs((logs) => [created, ...logs]);
+    } catch {
+      refreshDateLogs(selectedDate);
+    }
+  }, [selectedDate, refreshDateLogs]);
+
+  const totals = useMemo(() => sumNutrition(dateLogs), [dateLogs]);
   const dri = useMemo(() => calculateDRI(profile), [profile]);
 
   const grouped = useMemo(
     () =>
-      logs.reduce((acc, log) => {
+      dateLogs.reduce((acc, log) => {
         const key = log.mealType || "기타";
         if (!acc[key]) acc[key] = [];
         acc[key].push(log);
         return acc;
       }, {}),
-    [logs],
+    [dateLogs],
   );
 
   if (loading) return <LoadingState />;
@@ -460,7 +585,7 @@ export default function NutritionScreen() {
             />
             <Pressable
               style={styles.dateLabel}
-              onPress={() => setSelectedDate(new Date())}
+              onPress={() => setCalendarVisible(true)}
             >
               <Text style={styles.dateLabelText}>
                 {formatKoreanDate(selectedDate)}
@@ -569,7 +694,13 @@ export default function NutritionScreen() {
 
         <Card>
           <SectionHeader title="먹은 음식 목록" icon="silverware-fork-knife" />
-          {logs.length ? (
+          {dateLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primaryDark}
+              style={{ marginVertical: 16 }}
+            />
+          ) : dateLogs.length ? (
             Object.entries(grouped).map(([mealType, items]) => (
               <View key={mealType} style={styles.mealGroup}>
                 <Text style={styles.mealTitle}>{mealType}</Text>
@@ -577,7 +708,7 @@ export default function NutritionScreen() {
                   <MealLog
                     key={log.id}
                     log={log}
-                    onDelete={deleteNutritionLog}
+                    onDelete={handleDeleteLog}
                   />
                 ))}
               </View>
@@ -592,6 +723,12 @@ export default function NutritionScreen() {
         </Card>
       </ScrollView>
 
+      <DatePickerModal
+        visible={calendarVisible}
+        selectedDate={selectedDate}
+        onClose={() => setCalendarVisible(false)}
+        onSelect={setSelectedDate}
+      />
       <AddFoodModal
         visible={foodModalVisible}
         onClose={() => setFoodModalVisible(false)}
@@ -601,15 +738,15 @@ export default function NutritionScreen() {
       <MealTypePickerModal
         food={mealPickerFood}
         onClose={() => setMealPickerFood(null)}
-        onConfirm={(food, mealType) => addNutritionLogFromCustomFood(food, mealType)}
+        onConfirm={handleAddFromCustomFood}
         bottomInset={insets.bottom}
       />
       <EditFoodModal
         food={editingFood}
         onClose={() => setEditingFood(null)}
         onSave={async (id, form) => {
-          await deleteCustomFood(id);
           await addCustomFood(form);
+          await deleteCustomFood(id);
         }}
         onDelete={deleteCustomFood}
         bottomInset={insets.bottom}
@@ -809,6 +946,68 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     padding: 10,
     borderRadius: 8,
+  },
+  calSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 18,
+    paddingBottom: 28,
+  },
+  calMonthRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  calMonthTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  calDayNames: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  calDayName: {
+    flex: 1,
+    textAlign: "center",
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: "700",
+    paddingVertical: 4,
+  },
+  calGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  calCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+  },
+  calCellSelected: {
+    backgroundColor: colors.primaryDark,
+  },
+  calCellToday: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.primaryDark,
+  },
+  calDay: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  calDaySelected: {
+    color: colors.surface,
+    fontWeight: "900",
+  },
+  calDayToday: {
+    color: colors.primaryDark,
+    fontWeight: "900",
   },
   overlay: {
     flex: 1,

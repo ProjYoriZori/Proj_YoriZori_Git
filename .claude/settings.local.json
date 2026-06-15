@@ -4,6 +4,7 @@
       "PowerShell(java -version 2>&1)",
       "PowerShell(node --version)",
       "PowerShell(npm --version)",
+      "Skill(run)",
       "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\" -Depth 2 | Where-Object { !$_.FullName.Contains\\('.git'\\) } | Select-Object FullName)",
       "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\FrontEnd\\\\src\" -Depth 2 | Select-Object FullName | Where-Object { !$_.FullName.Contains\\('node_modules'\\) })",
       "PowerShell(Get-ChildItem \"D:\\\\TermProject\\\\2025Web\\\\Proj_YoriZori_Git\\\\BackEnd\\\\src\\\\main\\\\java\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName | Select-Object -First 40)",
