@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -210,7 +210,15 @@ export default function MyPageScreen() {
 
   return (
     <SafeAreaView style={globalStyles.screen} edges={["top"]}>
-      <ScrollView contentContainerStyle={globalStyles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+      <ScrollView
+        contentContainerStyle={globalStyles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
 
         {/* 헤더 */}
         <View style={styles.header}>
@@ -265,6 +273,7 @@ export default function MyPageScreen() {
         />
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
